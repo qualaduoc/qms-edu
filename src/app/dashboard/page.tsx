@@ -5,6 +5,7 @@ import RegisterForm from '@/features/auth/components/RegisterForm';
 import TeacherDashboard from '@/features/teacher-dashboard/components/TeacherDashboard';
 import LeadDashboard from '@/features/lead-dashboard/components/LeadDashboard';
 import BghDashboard from '@/features/bgh-dashboard/components/BghDashboard';
+import AdminDashboard from '@/features/admin-dashboard/components/AdminDashboard';
 import { UserRole, UserStatus } from '@/constants/roles';
 import { supabase } from '@/services/supabaseClient';
 
@@ -216,14 +217,7 @@ export default function DashboardPage() {
         <BghDashboard user={user} onLogout={handleLogout} />
       )}
       {user.role === 'super_admin' && (
-        <div className="p-8 text-center bg-slate-950 min-h-screen text-slate-200 flex flex-col items-center justify-center space-y-4">
-          <h1 className="text-3xl font-black bg-gradient-to-r from-blue-500 to-orange-500 bg-clip-text text-transparent">Super Admin Workspace</h1>
-          <p className="text-slate-400 text-sm max-w-sm">Tài khoản quản trị cấp cao của hệ thống QMS-EDU.</p>
-          <div className="flex gap-4 mt-6">
-            <button onClick={() => window.location.href = '/dashboard/library'} className="px-6 py-2.5 bg-orange-600 rounded-xl font-bold text-xs cursor-pointer">Vào Kho Học Liệu Vàng</button>
-            <button onClick={handleLogout} className="px-6 py-2.5 bg-slate-800 rounded-xl font-bold text-xs cursor-pointer text-slate-300">Đăng xuất</button>
-          </div>
-        </div>
+        <AdminDashboard user={user} onLogout={handleLogout} />
       )}
     </>
   );
