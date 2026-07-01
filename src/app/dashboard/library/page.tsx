@@ -234,40 +234,35 @@ export default function EliteLibraryPage() {
                   {/* Danh sách các file học liệu mẫu mực vinh danh thật */}
                   <div className="space-y-1.5 pt-1">
                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Danh sách học liệu vinh danh:</div>
-                    {parseEliteFiles(doc.fileName, doc.url).map((file, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-slate-300 bg-slate-50 text-xs">
-                        <div className="truncate max-w-[240px] font-bold text-slate-700">
-                          {file.url && file.url !== '#' ? (
+                    {parseEliteFiles(doc.fileName, doc.url).map((file, idx) => {
+                      const hasRealUrl = file.url && file.url !== '#';
+                      const fileUrl = hasRealUrl 
+                        ? file.url 
+                        : `https://drive.google.com/drive/search?q=${encodeURIComponent(file.name)}`;
+
+                      return (
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-slate-300 bg-slate-50 text-xs">
+                          <div className="truncate max-w-[240px] font-bold text-slate-700">
                             <a
-                              href={file.url}
+                              href={fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-brand-primary hover:underline"
                             >
                               📄 {file.name}
                             </a>
-                          ) : (
-                            <span className="text-slate-400 font-medium">
-                              📄 {file.name}
-                            </span>
-                          )}
-                        </div>
-                        {file.url && file.url !== '#' ? (
+                          </div>
                           <a
-                            href={file.url}
+                            href={fileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[9px] font-black cursor-pointer transition-colors"
                           >
-                            📥 Tải về
+                            {hasRealUrl ? '📥 Tải về' : '🔍 Tìm Drive'}
                           </a>
-                        ) : (
-                          <span className="px-3 py-1.5 bg-slate-100 text-slate-400 border border-slate-200 rounded-lg text-[9px] font-bold select-none">
-                            🔒 Drive gốc
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Góp ý nhận xét của BGH */}
