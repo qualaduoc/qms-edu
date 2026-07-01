@@ -516,25 +516,73 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                   <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 text-xs text-slate-500 text-center animate-pulse">
                     🔄 Đang quét trực tiếp Google Drive của giáo viên...
                   </div>
-                ) : scannedFiles.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic p-3 border border-dashed border-slate-200 rounded-xl bg-slate-50">Thư mục nộp bài của giáo viên tuần này trống.</p>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {scannedFiles.map((file, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 text-xs">
-                        <a
-                          href={file.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-brand-primary hover:underline font-bold truncate max-w-[200px]"
-                        >
-                          📄 {file.name}
-                        </a>
-                        <span className="text-[9px] font-bold text-brand-primary bg-brand-primary-light/40 border border-brand-primary-light px-1.5 py-0.5 rounded uppercase shrink-0">
-                          {file.type}
-                        </span>
+                  <div className="space-y-3">
+                    {/* Banner thông báo trạng thái nộp bài của Giáo viên */}
+                    {(() => {
+                      const khbdCount = scannedFiles.filter(f => f.type === FILE_TYPES.KHBD).length;
+                      const dctdCount = scannedFiles.filter(f => f.type === FILE_TYPES.DCTD).length;
+                      const khgdCount = scannedFiles.filter(f => f.type === FILE_TYPES.KHGD).length;
+
+                      if (scannedFiles.length === 0) {
+                        return (
+                          <div className="p-4 rounded-2xl border border-red-205 bg-red-50 text-red-700 text-xs font-bold flex items-center gap-2.5 shadow-sm animate-pulse">
+                            <span className="text-base">🚨</span>
+                            <div>
+                              <div className="font-black uppercase">Giáo viên chưa nộp học liệu nào!</div>
+                              <div className="text-[10px] text-red-500 font-medium mt-0.5">Không tìm thấy bất kỳ file nào trong thư mục tuần trên Google Drive.</div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Cảnh báo nộp thiếu file (Quy chuẩn tối thiểu: 2 file KHBD, 1 file DCTD)
+                      const isMissing = khbdCount < 2 || dctdCount < 1;
+                      if (isMissing) {
+                        return (
+                          <div className="p-4 rounded-2xl border border-orange-200 bg-orange-50 text-orange-850 text-xs font-bold flex items-center gap-2.5 shadow-sm">
+                            <span className="text-base">⚠️</span>
+                            <div>
+                              <div className="font-black uppercase">Cảnh báo: Giáo viên nộp thiếu học liệu!</div>
+                              <div className="text-[10px] text-orange-600 font-medium mt-0.5">
+                                Đã nộp: <strong className="text-orange-800">{khbdCount}/2 KHBD</strong> (Giáo án) và <strong className="text-orange-800">{dctdCount}/1 DCTD</strong> (Điều chỉnh).
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="p-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/50 text-emerald-850 text-xs font-bold flex items-center gap-2.5 shadow-sm">
+                          <span className="text-base">✓</span>
+                          <div>
+                            <div className="font-black uppercase text-emerald-800">Đã nộp đủ học liệu quy định</div>
+                            <div className="text-[10px] text-emerald-600 font-medium mt-0.5">Đồng bộ đầy đủ: {khbdCount}/2 KHBD, {dctdCount}/1 DCTD, {khgdCount} KHGD.</div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Danh sách các file thật nếu có */}
+                    {scannedFiles.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                        {scannedFiles.map((file, i) => (
+                          <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 text-xs hover:border-brand-primary/30 transition-all">
+                            <a
+                              href={file.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-brand-primary hover:underline font-bold truncate max-w-[200px]"
+                            >
+                              📄 {file.name}
+                            </a>
+                            <span className="text-[9px] font-bold text-brand-primary bg-brand-primary-light/40 border border-brand-primary-light px-1.5 py-0.5 rounded uppercase shrink-0">
+                              {file.type}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
@@ -618,7 +666,6 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                   </label>
                   <textarea
                     rows={4}
-                    required
                     value={bghFeedback}
                     onChange={e => setBghFeedback(e.target.value)}
                     placeholder="Nhập ghi chú nhận xét chi tiết (ví dụ: cần tăng tính sáng tạo ở hoạt động nhóm, cấu trúc bài dạy chuẩn chỉ...)"
