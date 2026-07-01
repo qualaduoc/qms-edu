@@ -30,7 +30,6 @@ async function isSuperAdmin(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
-    // Lấy config đầu tiên
     const { data: config, error } = await supabase
       .from('system_config')
       .select('*')
@@ -57,7 +56,22 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, schoolYear, startDate, googleDriveRootFolderId } = body;
+    const { 
+      id, 
+      schoolYear, 
+      startDate, 
+      googleDriveRootFolderId,
+      khbdDeadlineDay,
+      khbdDeadlineTime,
+      khbdFrequency,
+      khbdRequiredFiles,
+      khgdDeadlineDay,
+      khgdDeadlineTime,
+      khgdRequiredFiles,
+      dctdDeadlineDay,
+      dctdDeadlineTime,
+      dctdRequiredFiles
+    } = body;
 
     const supabase = getSupabaseAdmin();
     
@@ -65,7 +79,24 @@ export async function POST(req: NextRequest) {
       school_year: schoolYear,
       start_date: startDate,
       google_root_folder_id: googleDriveRootFolderId,
+      khbd_deadline_day: khbdDeadlineDay !== undefined ? Number(khbdDeadlineDay) : undefined,
+      khbd_deadline_time: khbdDeadlineTime,
+      khbd_frequency: khbdFrequency !== undefined ? Number(khbdFrequency) : undefined,
+      khbd_required_files: khbdRequiredFiles !== undefined ? Number(khbdRequiredFiles) : undefined,
+      khgd_deadline_day: khgdDeadlineDay !== undefined ? Number(khgdDeadlineDay) : undefined,
+      khgd_deadline_time: khgdDeadlineTime,
+      khgd_required_files: khgdRequiredFiles !== undefined ? Number(khgdRequiredFiles) : undefined,
+      dctd_deadline_day: dctdDeadlineDay !== undefined ? Number(dctdDeadlineDay) : undefined,
+      dctd_deadline_time: dctdDeadlineTime,
+      dctd_required_files: dctdRequiredFiles !== undefined ? Number(dctdRequiredFiles) : undefined,
     };
+
+    // Loại bỏ các trường undefined để tránh ghi đè lỗi
+    Object.keys(configData).forEach(key => {
+      if (configData[key] === undefined) {
+        delete configData[key];
+      }
+    });
 
     let result;
     if (id) {

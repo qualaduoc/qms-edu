@@ -20,6 +20,16 @@ interface SystemConfig {
   school_year: string;
   start_date: string;
   google_drive_root_folder_id: string;
+  khbd_deadline_day: number;
+  khbd_deadline_time: string;
+  khbd_frequency: number;
+  khbd_required_files: number;
+  khgd_deadline_day: number;
+  khgd_deadline_time: string;
+  khgd_required_files: number;
+  dctd_deadline_day: number;
+  dctd_deadline_time: string;
+  dctd_required_files: number;
 }
 
 interface AdminDashboardProps {
@@ -40,6 +50,16 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
     school_year: '2026-2027',
     start_date: '2026-09-01',
     google_drive_root_folder_id: '',
+    khbd_deadline_day: 5,
+    khbd_deadline_time: '16:00',
+    khbd_frequency: 2,
+    khbd_required_files: 2,
+    khgd_deadline_day: 5,
+    khgd_deadline_time: '16:00',
+    khgd_required_files: 1,
+    dctd_deadline_day: 5,
+    dctd_deadline_time: '16:00',
+    dctd_required_files: 1,
   });
 
   const { showToast } = useToast();
@@ -85,6 +105,16 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
           school_year: configResult.data.school_year || '',
           start_date: configResult.data.start_date || '',
           google_drive_root_folder_id: configResult.data.google_root_folder_id || '',
+          khbd_deadline_day: configResult.data.khbd_deadline_day !== null ? Number(configResult.data.khbd_deadline_day) : 5,
+          khbd_deadline_time: configResult.data.khbd_deadline_time || '16:00',
+          khbd_frequency: configResult.data.khbd_frequency !== null ? Number(configResult.data.khbd_frequency) : 2,
+          khbd_required_files: configResult.data.khbd_required_files !== null ? Number(configResult.data.khbd_required_files) : 2,
+          khgd_deadline_day: configResult.data.khgd_deadline_day !== null ? Number(configResult.data.khgd_deadline_day) : 5,
+          khgd_deadline_time: configResult.data.khgd_deadline_time || '16:00',
+          khgd_required_files: configResult.data.khgd_required_files !== null ? Number(configResult.data.khgd_required_files) : 1,
+          dctd_deadline_day: configResult.data.dctd_deadline_day !== null ? Number(configResult.data.dctd_deadline_day) : 5,
+          dctd_deadline_time: configResult.data.dctd_deadline_time || '16:00',
+          dctd_required_files: configResult.data.dctd_required_files !== null ? Number(configResult.data.dctd_required_files) : 1,
         });
       }
     } catch (err) {
@@ -156,6 +186,16 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
           schoolYear: config.school_year,
           startDate: config.start_date,
           googleDriveRootFolderId: config.google_drive_root_folder_id,
+          khbdDeadlineDay: config.khbd_deadline_day,
+          khbdDeadlineTime: config.khbd_deadline_time,
+          khbdFrequency: config.khbd_frequency,
+          khbdRequiredFiles: config.khbd_required_files,
+          khgdDeadlineDay: config.khgd_deadline_day,
+          khgdDeadlineTime: config.khgd_deadline_time,
+          khgdRequiredFiles: config.khgd_required_files,
+          dctdDeadlineDay: config.dctd_deadline_day,
+          dctdDeadlineTime: config.dctd_deadline_time,
+          dctdRequiredFiles: config.dctd_required_files,
         }),
       });
 
@@ -606,6 +646,142 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-colors shadow-sm"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">Thư mục Google Drive mà nhà trường sở hữu để chứa các tệp nộp bài.</p>
+              </div>
+
+              <div className="pt-5 border-t border-slate-100 space-y-4">
+                <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">🔔 Cấu hình Hạn nộp & Nhắc nhở Học liệu</h3>
+                
+                {/* KHBD (Giáo án) */}
+                <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4">
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1">📚 Kế hoạch bài dạy (Giáo án)</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Thứ nộp bài (Hàng tuần)</label>
+                      <select
+                        value={config.khbd_deadline_day}
+                        onChange={e => setConfig(prev => ({ ...prev, khbd_deadline_day: Number(e.target.value) }))}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-brand-primary shadow-sm"
+                      >
+                        <option value={1}>Thứ Hai</option>
+                        <option value={2}>Thứ Ba</option>
+                        <option value={3}>Thứ Tư</option>
+                        <option value={4}>Thứ Năm</option>
+                        <option value={5}>Thứ Sáu</option>
+                        <option value={6}>Thứ Bảy</option>
+                        <option value={7}>Chủ Nhật</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Hạn giờ nộp (HH:MM)</label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: 16:00"
+                        value={config.khbd_deadline_time}
+                        onChange={e => setConfig(prev => ({ ...prev, khbd_deadline_time: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-850 focus:outline-none focus:border-brand-primary shadow-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Tần suất nộp (Số tuần/lần)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={4}
+                        value={config.khbd_frequency}
+                        onChange={e => setConfig(prev => ({ ...prev, khbd_frequency: Number(e.target.value) }))}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-850 focus:outline-none focus:border-brand-primary shadow-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Số lượng file yêu cầu</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={5}
+                        value={config.khbd_required_files}
+                        onChange={e => setConfig(prev => ({ ...prev, khbd_required_files: Number(e.target.value) }))}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-850 focus:outline-none focus:border-brand-primary shadow-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* KHGD (Kế hoạch tuần) */}
+                <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4">
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1">📅 Kế hoạch giảng dạy (Đầu tháng)</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Ngày nộp bài trong tháng (1-31)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={config.khgd_deadline_day}
+                        onChange={e => setConfig(prev => ({ ...prev, khgd_deadline_day: Number(e.target.value) }))}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-850 focus:outline-none focus:border-brand-primary shadow-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Hạn giờ nộp (HH:MM)</label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: 16:00"
+                        value={config.khgd_deadline_time}
+                        onChange={e => setConfig(prev => ({ ...prev, khgd_deadline_time: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-850 focus:outline-none focus:border-brand-primary shadow-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* DCTD (Điều chỉnh sau tiết dạy) */}
+                <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4">
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1">📝 Điều chỉnh sau tiết dạy (Hàng tuần)</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Thứ nộp bài (Hàng tuần)</label>
+                      <select
+                        value={config.dctd_deadline_day}
+                        onChange={e => setConfig(prev => ({ ...prev, dctd_deadline_day: Number(e.target.value) }))}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-brand-primary shadow-sm"
+                      >
+                        <option value={1}>Thứ Hai</option>
+                        <option value={2}>Thứ Ba</option>
+                        <option value={3}>Thứ Tư</option>
+                        <option value={4}>Thứ Năm</option>
+                        <option value={5}>Thứ Sáu</option>
+                        <option value={6}>Thứ Bảy</option>
+                        <option value={7}>Chủ Nhật</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Hạn giờ nộp (HH:MM)</label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: 16:00"
+                        value={config.dctd_deadline_time}
+                        onChange={e => setConfig(prev => ({ ...prev, dctd_deadline_time: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-850 focus:outline-none focus:border-brand-primary shadow-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chạy Quét Nhắc Nhở Thử Nghiệm */}
+                <div className="p-4 rounded-xl border border-dashed border-brand-accent/30 bg-brand-accent-light/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="space-y-1">
+                    <div className="text-xs font-black text-brand-accent uppercase tracking-wider">🔬 Chế độ quét nhắc nhở thử nghiệm</div>
+                    <p className="text-[10px] text-slate-500 max-w-md">Bấm nút bên cạnh để lập tức giả lập quét nộp bài của toàn trường và gửi email thúc giục giáo viên thiếu file (Khầy không cần đợi đến thứ Sáu để kiểm thử).</p>
+                  </div>
+                  <a
+                    href="/api/cron/check-deadlines?test=true"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-brand-accent hover:bg-brand-accent-hover text-white rounded-lg text-xs font-bold cursor-pointer transition-all text-center shrink-0 shadow-sm"
+                  >
+                    🚀 Chạy quét ngay ↗
+                  </a>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex justify-end">

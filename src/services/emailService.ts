@@ -167,3 +167,73 @@ export async function sendIncompleteEmail(
 
   await sendEmail({ to: teacherEmail, subject, html });
 }
+
+/**
+ * Gửi email tự động nhắc nhở/thúc giục giáo viên nộp bài khi sắp đến hạn
+ */
+export async function sendDeadlineReminderEmail(
+  teacherEmail: string,
+  teacherName: string,
+  weekNumber: number,
+  missingFilesText: string,
+  dueDateText: string
+): Promise<void> {
+  const subject = `[QMS-EDU] Nhắc nhở: Sắp hết hạn nộp tài liệu báo cáo tuần ${weekNumber}`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #fed7d7; border-radius: 8px; color: #1a202c; background-color: #fffaf0;">
+      <div style="text-align: center; border-bottom: 2px solid #e53e3e; padding-bottom: 10px; margin-bottom: 20px;">
+        <h2 style="color: #e53e3e; margin: 0; font-size: 20px;">🔔 Nhắc Nhở Tự Động QMS-EDU</h2>
+        <span style="font-size: 12px; color: #718096;">Đôn đốc hoàn thành học liệu giảng dạy</span>
+      </div>
+      
+      <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px;">Kính gửi Thầy/Cô ${teacherName},</p>
+      
+      <p style="line-height: 1.6; margin-bottom: 15px;">
+        Hệ thống tự động phát hiện Thầy/Cô **chưa hoàn thành nộp đủ** các tài liệu học liệu quy định cho **Tuần ${weekNumber}**.
+      </p>
+      
+      <div style="background-color: #fff5f5; padding: 15px; border-left: 4px solid #e53e3e; margin-bottom: 20px; border-radius: 4px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 5px 0; color: #4a5568; width: 150px;"><strong>Học kỳ/Tuần dạy:</strong></td>
+            <td style="padding: 5px 0;">Tuần ${weekNumber}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0; color: #4a5568;"><strong>Các tài liệu còn thiếu:</strong></td>
+            <td style="padding: 5px 0; color: #e53e3e; font-weight: bold;">
+              ${missingFilesText}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0; color: #4a5568;"><strong>Hạn chót nộp bài:</strong></td>
+            <td style="padding: 5px 0; color: #2d3748; font-weight: bold; text-decoration: underline;">
+              ${dueDateText}
+            </td>
+          </tr>
+        </table>
+      </div>
+      
+      <p style="line-height: 1.6; margin-bottom: 20px; color: #2d3748;">
+        Kính mong Thầy/Cô khẩn trương truy cập hệ thống QMS-EDU và tải lên các tài liệu còn thiếu trước thời hạn quy định để đảm bảo chất lượng công tác chuyên môn của nhà trường.
+      </p>
+      
+      <div style="text-align: center; margin-bottom: 20px;">
+        <a 
+          href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" 
+          style="display: inline-block; background-color: #e53e3e; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px;"
+        >
+          ➔ Truy Cập QMS-EDU Nộp Bài Ngay
+        </a>
+      </div>
+      
+      <div style="border-top: 1px solid #fed7d7; padding-top: 15px; font-size: 12px; color: #a0aec0; text-align: center;">
+        <p style="margin: 0 0 5px 0;">Đây là email đôn đốc tự động được thiết lập bởi Ban Giám Hiệu trường Tiểu học Lương Thế Vinh.</p>
+        <p style="margin: 0;">Vui lòng không trả lời email này.</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail({ to: teacherEmail, subject, html });
+}
+
