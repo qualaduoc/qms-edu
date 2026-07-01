@@ -1,14 +1,41 @@
 import { google } from 'googleapis';
 
+const webAppUrl = process.env.GOOGLE_DRIVE_WEBAPP_URL;
+
+// Hàm helper gọi Google Apps Script Web App nếu có cấu hình
+async function callWebApp(action: string, payload: any): Promise<any> {
+  if (!webAppUrl) {
+    throw new Error('Chưa cấu hình GOOGLE_DRIVE_WEBAPP_URL trong file .env.local');
+  }
+  
+  const res = await fetch(webAppUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  
+  if (!res.ok) {
+    throw new Error(`Web App kết nối thất bại với mã lỗi: ${res.status}`);
+  }
+  
+  const data = await res.json();
+  if (!data.success) {
+    throw new Error(data.error || 'Lỗi xử lý bên trong Web App Google Drive.');
+  }
+  
+  return data;
+}
+
 // Hàm helper để chuẩn bị private key từ env
 const getPrivateKey = () => {
   const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
   if (!privateKey) return '';
-  // Xử lý trường hợp key có chứa ký tự xuống dòng \n bị escape thành \\n
   return privateKey.replace(/\\n/g, '\n');
 };
 
-// Khởi tạo Google Auth client với Service Account
+// Khởi tạo Google Auth client với Service Account (Dùng làm phương án dự phòng)
 const getDriveClient = () => {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const privateKey = getPrivateKey();
@@ -32,9 +59,6 @@ const getDriveClient = () => {
 export async function transferOwnership(fileId: string, emailAddress: string): Promise<void> {
   const drive = getDriveClient();
   try {
-    console.log(`[Drive API] Bắt đầu chuyển quyền sở hữu file/folder ${fileId} sang cho ${emailAddress}...`);
-    
-    // Gửi yêu cầu thay đổi chủ sở hữu
     await drive.permissions.create({
       fileId: fileId,
       transferOwnership: true,
@@ -44,7 +68,6 @@ export async function transferOwnership(fileId: string, emailAddress: string): P
         emailAddress: emailAddress,
       },
     });
-    console.log(`[Drive API] Chuyển chủ sở hữu thành công.`);
   } catch (err: any) {
     console.warn(`[Drive API] Lỗi/Cảnh báo chuyển quyền sở hữu cho ${fileId}:`, err.message || err);
   }
@@ -52,11 +75,16 @@ export async function transferOwnership(fileId: string, emailAddress: string): P
 
 /**
  * Tạo một thư mục mới trên Google Drive
- * @param folderName Tên thư mục cần tạo
- * @param parentId ID của thư mục cha
- * @returns ID của thư mục mới tạo
  */
 export async function createFolder(folderName: string, parentId: string): Promise<string> {
+  // Nếu sử dụng Google Apps Script Web App (Khuyên dùng cho tài khoản cá nhân để tránh lỗi quota)
+  if (webAppUrl) {
+    console.log(`[Apps Script API] Tạo thư mục: ${folderName} dưới thư mục cha ${parentId}`);
+    const result = await callWebApp('createFolder', { folderName, parentId });
+    return result.folderId;
+  }
+
+  // Fallback về Service Account
   const drive = getDriveClient();
   const ownerEmail = process.env.SMTP_USER || 'ledinhphuonglanltv@gmail.com';
   
@@ -77,9 +105,7 @@ export async function createFolder(folderName: string, parentId: string): Promis
       throw new Error('Failed to create folder - ID not returned');
     }
 
-    // Chuyển chủ sở hữu sang cho Khầy để bypass quota và hiển thị thư mục tự nhiên trong Drive của Khầy
     await transferOwnership(folderId, ownerEmail);
-
     return folderId;
   } catch (error) {
     console.error('Error creating folder on Google Drive:', error);
@@ -89,13 +115,14 @@ export async function createFolder(folderName: string, parentId: string): Promis
 
 /**
  * Tìm kiếm thư mục theo tên trong thư mục cha
- * @param folderName Tên thư mục cần tìm
- * @param parentId ID thư mục cha
- * @returns ID thư mục nếu tìm thấy, ngược lại trả về null
  */
 export async function findFolder(folderName: string, parentId: string): Promise<string | null> {
-  const drive = getDriveClient();
+  if (webAppUrl) {
+    const result = await callWebApp('findFolder', { folderName, parentId });
+    return result.folderId;
+  }
 
+  const drive = getDriveClient();
   try {
     const q = `name = '${folderName.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`;
     const response = await drive.files.list({
@@ -118,9 +145,6 @@ export async function findFolder(folderName: string, parentId: string): Promise<
 
 /**
  * Lấy thư mục hoặc tạo mới nếu chưa tồn tại
- * @param folderName Tên thư mục
- * @param parentId ID thư mục cha
- * @returns ID thư mục
  */
 export async function getOrCreateFolder(folderName: string, parentId: string): Promise<string> {
   const existingFolderId = await findFolder(folderName, parentId);
@@ -132,11 +156,6 @@ export async function getOrCreateFolder(folderName: string, parentId: string): P
 
 /**
  * Upload file từ Buffer lên Google Drive
- * @param fileBuffer Buffer nội dung file
- * @param fileName Tên file khi lưu trên Drive
- * @param mimeType Định dạng file (ví dụ: application/vnd.openxmlformats-officedocument.wordprocessingml.document)
- * @param parentId ID thư mục cha lưu file
- * @returns Object chứa fileId và webViewLink
  */
 export async function uploadFile(
   fileBuffer: Buffer,
@@ -144,17 +163,29 @@ export async function uploadFile(
   mimeType: string,
   parentId: string
 ): Promise<{ fileId: string; fileUrl: string }> {
+  // Nếu sử dụng Google Apps Script Web App (Khắc phục triệt để lỗi Quota của Service Account)
+  if (webAppUrl) {
+    console.log(`[Apps Script API] Đang upload file: ${fileName} lên thư mục ${parentId}`);
+    const fileBase64 = fileBuffer.toString('base64');
+    const result = await callWebApp('uploadFile', {
+      fileName,
+      mimeType,
+      parentId,
+      fileContent: fileBase64,
+    });
+    return { fileId: result.fileId, fileUrl: result.fileUrl };
+  }
+
+  // Fallback về Service Account
   const drive = getDriveClient();
   const ownerEmail = process.env.SMTP_USER || 'ledinhphuonglanltv@gmail.com';
 
   try {
-    // 1. Tạo file trống trước (0 bytes) để tránh lỗi quota lưu trữ của Service Account
     const fileMetadata = {
       name: fileName,
       parents: [parentId],
     };
 
-    console.log(`[Drive API] Khởi tạo file trống: ${fileName} trong thư mục ${parentId}`);
     const emptyFileResponse = await drive.files.create({
       requestBody: fileMetadata,
       fields: 'id',
@@ -165,11 +196,8 @@ export async function uploadFile(
       throw new Error('Không thể tạo file trống trên Google Drive.');
     }
 
-    // 2. Chuyển ngay quyền sở hữu file trống sang cho Khầy để tính quota vào tài khoản của Khầy
     await transferOwnership(fileId, ownerEmail);
 
-    // 3. Thực hiện update nội dung file thật (Buffer) vào file trống vừa tạo
-    console.log(`[Drive API] Upload nội dung file thực tế vào file ID: ${fileId}`);
     const { Readable } = require('stream');
     const media = {
       mimeType: mimeType,
@@ -187,7 +215,6 @@ export async function uploadFile(
       throw new Error('Upload nội dung thất bại - không lấy được URL.');
     }
 
-    // 4. Phân quyền đọc cho bất cứ ai có link để Ban Giám Hiệu và Khối trưởng xem được giáo án
     try {
       await drive.permissions.create({
         fileId: fileId,
@@ -209,8 +236,6 @@ export async function uploadFile(
 
 /**
  * Quét và liệt kê toàn bộ file trong một thư mục cụ thể
- * @param folderId ID thư mục cần quét
- * @returns Danh sách các file (id, name, webViewLink, createdTime)
  */
 export async function listFilesInFolder(folderId: string): Promise<Array<{
   id: string;
@@ -218,8 +243,12 @@ export async function listFilesInFolder(folderId: string): Promise<Array<{
   url: string;
   createdTime: string;
 }>> {
-  const drive = getDriveClient();
+  if (webAppUrl) {
+    const result = await callWebApp('listFiles', { folderId });
+    return result.files;
+  }
 
+  const drive = getDriveClient();
   try {
     const q = `'${folderId}' in parents and trashed = false`;
     const response = await drive.files.list({
@@ -244,11 +273,14 @@ export async function listFilesInFolder(folderId: string): Promise<Array<{
 
 /**
  * Xóa một file khỏi Google Drive
- * @param fileId ID file cần xóa
  */
 export async function deleteFile(fileId: string): Promise<void> {
-  const drive = getDriveClient();
+  if (webAppUrl) {
+    await callWebApp('deleteFile', { fileId });
+    return;
+  }
 
+  const drive = getDriveClient();
   try {
     await drive.files.delete({
       fileId,

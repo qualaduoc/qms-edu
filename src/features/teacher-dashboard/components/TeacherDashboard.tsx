@@ -493,24 +493,20 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
               </p>
             </div>
 
-            {/* Trạng thái duyệt của Khối Trưởng */}
+            {/* Trạng thái nộp học liệu */}
             <div className="flex flex-col gap-1 items-start md:items-end">
-              <span className="text-[10px] text-slate-400 font-bold uppercase">Kiểm duyệt Khối trưởng</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase">Trạng thái nộp bài</span>
               {!selectedWeekSubmission?.submittedAt ? (
                 <span className="px-3 py-1.5 text-xs font-bold rounded-lg border border-red-200 bg-red-50 text-red-600 shadow-sm">
                   Chưa nộp báo cáo
                 </span>
-              ) : selectedWeekSubmission.leadStatus === 'pending' ? (
-                <span className="px-3 py-1.5 text-xs font-bold rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-600 shadow-sm">
-                  ⏳ Đã nộp - Chờ Khối trưởng duyệt
-                </span>
               ) : selectedWeekSubmission.leadStatus === 'incomplete' ? (
                 <span className="px-3 py-1.5 text-xs font-bold rounded-lg border border-orange-200 bg-orange-50 text-orange-600 shadow-sm animate-pulse">
-                  ⚠️ Cần nộp lại hoặc nộp thiếu
+                  ⚠️ Khối trưởng yêu cầu bổ sung
                 </span>
               ) : (
                 <span className="px-3 py-1.5 text-xs font-bold rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-600 shadow-sm">
-                  ✓ Khối trưởng đã duyệt nộp đủ
+                  ✓ Đã hoàn thành nộp
                 </span>
               )}
             </div>

@@ -568,12 +568,10 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
                         <div className="text-right">
                           {!sub?.submittedAt ? (
                             <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-slate-100 text-slate-500 border border-slate-200">Chưa nộp bài</span>
-                          ) : sub.leadStatus === 'pending' ? (
-                            <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-yellow-50 text-yellow-600 border border-yellow-200 animate-pulse">Chờ kiểm duyệt</span>
                           ) : sub.leadStatus === 'incomplete' ? (
                             <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-orange-50 text-orange-600 border border-orange-200">Cần bổ sung</span>
                           ) : (
-                            <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">✓ Đã duyệt nộp đủ</span>
+                            <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">✓ Đã nộp bài</span>
                           )}
                         </div>
 
@@ -592,7 +590,7 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
                             disabled={!sub?.submittedAt && sub?.leadStatus === 'incomplete'}
                             className="px-3 py-2 bg-brand-primary hover:bg-brand-primary-hover disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-100 text-white rounded-xl text-[10px] font-bold cursor-pointer transition-all active:scale-95 shadow-sm btn-interactive"
                           >
-                            ⚖️ Duyệt & Gửi mail
+                            ✉ Phản hồi & Nhắc nhở
                           </button>
                         </div>
                       </div>
@@ -613,7 +611,7 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
             <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-brand-primary to-brand-accent"></div>
 
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4">
-              ⚖️ Duyệt hồ sơ nộp Tuần {selectedWeek} - {selectedTeacher.fullName}
+              ✉ Phản hồi & Nhắc nhở Tuần {selectedWeek} - {selectedTeacher.fullName}
             </h3>
 
             <div className="space-y-4">
