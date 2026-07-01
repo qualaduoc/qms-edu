@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/services/supabaseClient';
 import { getOrCreateFolder, uploadFile, listFilesInFolder, deleteFile } from '@/services/googleDriveService';
