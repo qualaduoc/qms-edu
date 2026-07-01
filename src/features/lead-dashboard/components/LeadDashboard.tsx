@@ -485,36 +485,64 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
           </button>
         </div>
       </header>
-
-      {/* SUB HEADER - TAB / WEEK SELECTOR */}
-      <div className="bg-white border-b border-slate-200/80 px-6 py-3 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <label className="text-xs font-bold text-slate-500 uppercase">Chọn Tuần kiểm duyệt:</label>
-          <select
-            value={selectedWeek}
-            onChange={(e) => setSelectedWeek(Number(e.target.value))}
-            className="bg-white border border-slate-200 text-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-brand-primary cursor-pointer shadow-sm"
-          >
-            {Array.from({ length: totalWeeks }, (_, i) => i + 1).map(w => (
-              <option key={w} value={w}>Tuần {w}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="text-xs font-bold text-slate-500">
-          Lịch học tuần {selectedWeek}: <span className="text-brand-primary">{formatDate(dateRange.start)}</span> đến <span className="text-brand-primary">{formatDate(dateRange.end)}</span>
-        </div>
-      </div>
-
-      {/* MAIN CONTENT */}
-      <main className="flex-grow p-4 sm:p-6 space-y-6 max-w-7xl w-full mx-auto">
+      {/* 2. MAIN LAYOUT (Sidebar chọn Tuần + Main Content) */}
+      <div className="flex-grow flex flex-col md:flex-row">
         
-        {/* Banner Success */}
-        {successMsg && (
-          <div className="p-4 rounded-xl border border-green-200 bg-green-50 text-sm text-green-700 font-bold animate-fade-in shadow-sm">
-            ✅ {successMsg}
+        {/* SIDEBAR BÊN TRÁI: Chọn Tuần dọc */}
+        <aside className="w-full md:w-64 border-r border-slate-200 bg-white p-4 shrink-0 flex flex-col gap-3 shadow-sm">
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider px-2">
+            Tuần dạy học (Năm học 2026-2027)
           </div>
-        )}
+          
+          <div className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-y-auto max-h-[150px] md:max-h-[calc(100vh-180px)] pb-2 md:pb-0 pr-1 scrollbar-hidden">
+            {Array.from({ length: totalWeeks }, (_, idx) => idx + 1).map((week) => {
+              const isCurrent = week === currentWeek;
+              const isSelected = week === selectedWeek;
+
+              return (
+                <button
+                  key={week}
+                  onClick={() => setSelectedWeek(week)}
+                  className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border text-xs font-medium cursor-pointer transition-all shrink-0 shadow-sm btn-interactive ${
+                    isSelected
+                      ? 'border-brand-accent bg-brand-accent-light/35 text-brand-accent font-bold'
+                      : 'border-slate-100 bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span>📅</span>
+                    <span>Tuần {week}</span>
+                    {isCurrent && (
+                      <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-black text-[9px] border border-blue-200">
+                        HIỆN TẠI
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
+
+        {/* CỘT CHÍNH: Bảng theo dõi giáo viên */}
+        <main className="flex-grow p-4 sm:p-6 space-y-6 max-w-7xl w-full mx-auto">
+          {/* Lịch học tuần ở đầu main */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center shadow-sm">
+            <div>
+              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tuần dạy học hiện chọn</div>
+              <h2 className="text-lg font-black text-slate-800">Báo cáo tuần {selectedWeek}</h2>
+            </div>
+            <div className="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-150 px-3 py-1.5 rounded-lg shrink-0">
+              Lịch dạy: <span className="text-brand-primary">{formatDate(dateRange.start)}</span> đến <span className="text-brand-primary">{formatDate(dateRange.end)}</span>
+            </div>
+          </div>
+
+          {/* Banner Success */}
+          {successMsg && (
+            <div className="p-4 rounded-xl border border-green-200 bg-green-50 text-sm text-green-700 font-bold animate-fade-in shadow-sm">
+              ✅ {successMsg}
+            </div>
+          )}
 
         {/* TIẾN TRÌNH TỰ ĐỘNG QUÉT DRIVE NGẦM */}
         {isAutoScanning && (
@@ -756,6 +784,7 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
           </div>
         )}
       </main>
+      </div>
 
       {/* POPUP MODAL DUYỆT & NHẬN XÉT GỬI MAIL */}
       {selectedTeacher && (
