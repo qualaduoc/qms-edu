@@ -345,6 +345,12 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
             </div>
           </div>
           <button
+            onClick={() => window.location.href = '/dashboard'}
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 active:scale-[0.98] transition-all px-3 py-1.5 text-xs font-bold text-indigo-100 hover:text-white cursor-pointer btn-interactive"
+          >
+            🏠 Chọn khu vực
+          </button>
+          <button
             onClick={onLogout}
             className="flex items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 active:scale-[0.98] transition-all px-3 py-1.5 text-xs font-bold text-indigo-100 hover:text-white cursor-pointer btn-interactive"
           >
