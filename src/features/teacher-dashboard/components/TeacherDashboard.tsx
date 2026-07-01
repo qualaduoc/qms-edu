@@ -541,7 +541,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
           )}
 
           {/* 2.1 TRẠNG THÁI TUẦN CHỌN */}
-          <div className="p-6 rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
+          <div className="p-6 rounded-2xl border border-slate-300 bg-white shadow-sm flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
             <div className="space-y-1.5">
               <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Trạng thái báo cáo</div>
               <h2 className="text-2xl font-black text-slate-800">Tuần {selectedWeek}</h2>
@@ -637,7 +637,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
                     : (deadlineConfig?.dctd_required_files !== null && deadlineConfig?.dctd_required_files !== undefined ? Number(deadlineConfig.dctd_required_files) : 1);
 
                 return (
-                  <div key={type} className="p-5 rounded-2xl border border-slate-200/80 bg-white hover:border-brand-primary transition-all flex flex-col justify-between min-h-[220px] shadow-sm relative group">
+                  <div key={type} className="p-5 rounded-2xl border border-slate-300 bg-white hover:border-brand-primary transition-all flex flex-col justify-between min-h-[220px] shadow-sm relative group">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black text-brand-primary bg-brand-primary-light/50 border border-brand-primary-light px-2 py-0.5 rounded-full uppercase">
@@ -661,7 +661,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
                           {typeFiles.map((file) => (
                             <div 
                               key={file.id || file.name} 
-                              className="flex justify-between items-center gap-2 p-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] text-slate-650 leading-snug shadow-sm"
+                              className="flex justify-between items-center gap-2 p-2 bg-slate-50 border border-slate-300 rounded-xl text-[10px] text-slate-650 leading-snug shadow-sm"
                             >
                               <div className="truncate flex-grow font-bold">
                                 {file.url ? (
@@ -696,7 +696,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
                       )}
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-slate-100">
+                    <div className="mt-4 pt-3 border-t border-slate-300">
                       {typeFiles.length < reqCount ? (
                         <label className="w-full block text-center py-2 bg-brand-primary-light/40 hover:bg-brand-primary-light/60 text-brand-primary border border-brand-primary-light rounded-xl text-[10px] font-bold cursor-pointer transition-colors btn-interactive shadow-sm">
                           Tải file Word lên ({typeFiles.length}/{reqCount})
@@ -735,7 +735,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
           </div>
 
           {/* NÚT GỬI BÁO CÁO CHÍNH THỨC */}
-          <div className="pt-4 border-t border-slate-200/80 flex justify-end">
+          <div className="pt-4 border-t border-slate-300 flex justify-end">
             <button
               onClick={handleSendSubmission}
               disabled={isSubmitting || loadingData}

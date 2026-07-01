@@ -215,7 +215,7 @@ export default function EliteLibraryPage() {
         ) : !loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredDocs.map((doc) => (
-              <div key={doc.id} className="p-6 rounded-2xl border border-slate-200/80 bg-white hover:border-brand-primary shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+              <div key={doc.id} className="p-6 rounded-2xl border border-slate-300 bg-white hover:border-brand-primary shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -235,7 +235,7 @@ export default function EliteLibraryPage() {
                   <div className="space-y-1.5 pt-1">
                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Danh sách học liệu vinh danh:</div>
                     {parseEliteFiles(doc.fileName, doc.url).map((file, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 text-xs">
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-slate-300 bg-slate-50 text-xs">
                         <div className="truncate max-w-[240px] font-bold text-slate-700">
                           {file.url && file.url !== '#' ? (
                             <a
@@ -278,7 +278,7 @@ export default function EliteLibraryPage() {
                   )}
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 flex justify-between items-center text-[9px] text-slate-400 font-medium">
+                <div className="pt-3 border-t border-slate-300 flex justify-between items-center text-[9px] text-slate-400 font-medium">
                   <span>Bình chọn vào: {new Date(doc.selectedAt).toLocaleDateString('vi-VN')}</span>
                   <span className="font-bold text-amber-600 uppercase bg-amber-50 px-2 py-0.5 rounded border border-amber-250">
                     {parseEliteFiles(doc.fileName, doc.url).length} Học liệu vinh danh

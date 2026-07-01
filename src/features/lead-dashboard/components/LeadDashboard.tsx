@@ -533,7 +533,7 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
         {/* CỘT CHÍNH: Bảng theo dõi giáo viên */}
         <main className="flex-grow p-4 sm:p-6 space-y-6 max-w-7xl w-full mx-auto">
           {/* Lịch học tuần ở đầu main */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center shadow-sm">
+          <div className="bg-white border border-slate-300 rounded-2xl p-4 flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center shadow-sm">
             <div>
               <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tuần dạy học hiện chọn</div>
               <h2 className="text-lg font-black text-slate-800">Báo cáo tuần {selectedWeek}</h2>
@@ -625,10 +625,10 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
                       key={teacher.id} 
                       className={`p-4 rounded-xl border transition-all shadow-sm flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-white ${
                         isComplete 
-                          ? 'border-emerald-100 hover:border-emerald-200 hover:shadow-emerald-50/20' 
+                          ? 'border-emerald-300 hover:border-emerald-400 hover:shadow-emerald-50/20' 
                           : fileCount > 0 
-                            ? 'border-orange-100 hover:border-orange-200' 
-                            : 'border-slate-200 hover:border-slate-300'
+                            ? 'border-orange-300 hover:border-orange-400' 
+                            : 'border-slate-300 hover:border-slate-400'
                       }`}
                     >
                       {/* Cột 1: Giáo viên & Thư mục Drive */}
@@ -795,7 +795,7 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
       {/* POPUP MODAL DUYỆT & NHẬN XÉT GỬI MAIL */}
       {selectedTeacher && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl relative overflow-hidden">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-300 bg-white p-6 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-brand-primary to-brand-accent"></div>
 
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4">
@@ -804,7 +804,7 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
 
             <div className="space-y-4">
               {/* Box Info */}
-              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs space-y-1.5 text-slate-600">
+              <div className="p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs space-y-1.5 text-slate-600">
                 <div>• <strong>Người nhận mail thông báo:</strong> {selectedTeacher.fullName}</div>
                 <div>• <strong>Địa chỉ Gmail gửi thật:</strong> {selectedTeacher.email}</div>
                 <div>• <strong>Tuần học kiểm duyệt:</strong> Tuần {selectedWeek}</div>
@@ -830,7 +830,7 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
               )}
 
               {/* Buttons */}
-              <div className="flex gap-2 justify-end pt-3 border-t border-slate-100">
+              <div className="flex gap-2 justify-end pt-3 border-t border-slate-300">
                 <button
                   onClick={() => setSelectedTeacher(null)}
                   disabled={isSubmitting}

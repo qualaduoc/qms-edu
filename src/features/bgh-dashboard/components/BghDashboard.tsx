@@ -485,7 +485,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                     className={`flex items-center justify-between p-3 rounded-xl border transition-all duration-200 cursor-pointer active:scale-[0.99] group ${
                       isSelected
                         ? 'border-brand-primary bg-brand-primary-light/10 shadow-sm ring-1 ring-brand-primary'
-                        : 'border-slate-100 bg-slate-50/50 hover:bg-white hover:border-brand-primary/45 hover:shadow-sm'
+                        : 'border-slate-300 bg-slate-50/50 hover:bg-white hover:border-brand-primary/45 hover:shadow-sm'
                     }`}
                   >
                     <div>
@@ -599,7 +599,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                     {scannedFiles.length > 0 && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                         {scannedFiles.map((file, i) => (
-                          <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 text-xs hover:border-brand-primary/30 transition-all">
+                          <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-slate-300 bg-slate-50 text-xs hover:border-brand-primary/30 transition-all">
                             <a
                               href={file.url}
                               target="_blank"
@@ -642,7 +642,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                   
                   <div className="space-y-2.5">
                     {CRITERIA.map(item => (
-                      <div key={item.key} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50 text-xs">
+                      <div key={item.key} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3 rounded-xl border border-slate-300 bg-slate-50/50 text-xs">
                         <span className="font-bold text-slate-700 max-w-md leading-relaxed">{item.label}</span>
                         <div className="flex gap-1 shrink-0">
                           {Object.values(EVALUATION_LEVELS).map(lvl => (
@@ -666,7 +666,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                 </div>
 
                 {/* Xếp Loại Tổng Hợp */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-300 pt-5">
                   <div className="space-y-2">
                     <label className="block text-xs font-black text-slate-500 uppercase">
                       Xếp loại chất lượng giáo án
@@ -690,7 +690,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                   </div>
 
                    {/* Vinh danh học liệu vàng (Tích xanh) */}
-                   <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between">
+                   <div className="p-4 rounded-xl border border-slate-300 bg-slate-50 flex items-center justify-between">
                      <div>
                        <h5 className="text-xs font-bold text-slate-800">Bài học mẫu mực</h5>
                        <p className="text-[10px] text-slate-400 mt-0.5">
@@ -732,7 +732,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                 </div>
 
                 {/* Nút lưu đánh giá */}
-                <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+                <div className="pt-4 border-t border-slate-300 flex justify-end gap-3">
                   <button
                     type="submit"
                     disabled={isSaving}

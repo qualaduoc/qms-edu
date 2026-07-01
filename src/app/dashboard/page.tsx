@@ -265,7 +265,7 @@ export default function DashboardPage() {
             {/* CARD 1: KHO HỌC LIỆU VÀNG */}
             <div
               onClick={() => window.location.href = '/dashboard/library'}
-              className="p-8 rounded-3xl border border-slate-200 bg-white hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-300 flex flex-col justify-between min-h-[300px] shadow-sm relative cursor-pointer group active:scale-[0.99]"
+              className="p-8 rounded-3xl border border-slate-300 bg-white hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-300 flex flex-col justify-between min-h-[300px] shadow-sm relative cursor-pointer group active:scale-[0.99]"
             >
               <div className="absolute top-0 right-0 p-6 text-4xl group-hover:scale-110 transition-transform duration-300">🏆</div>
               <div className="space-y-4">
@@ -288,7 +288,7 @@ export default function DashboardPage() {
             {/* CARD 2: KHU VỰC LÀM VIỆC */}
             <div
               onClick={() => setViewMode('workspace')}
-              className="p-8 rounded-3xl border border-slate-200 bg-white hover:border-brand-primary/50 hover:shadow-xl hover:shadow-brand-primary/5 transition-all duration-300 flex flex-col justify-between min-h-[300px] shadow-sm relative cursor-pointer group active:scale-[0.99]"
+              className="p-8 rounded-3xl border border-slate-300 bg-white hover:border-brand-primary/50 hover:shadow-xl hover:shadow-brand-primary/5 transition-all duration-300 flex flex-col justify-between min-h-[300px] shadow-sm relative cursor-pointer group active:scale-[0.99]"
             >
               <div className="absolute top-0 right-0 p-6 text-4xl group-hover:scale-110 transition-transform duration-300">💼</div>
               <div className="space-y-4">
@@ -315,7 +315,7 @@ export default function DashboardPage() {
         </main>
 
         {/* Footer của Landing Page */}
-        <footer className="py-6 text-center text-[10px] text-slate-450 border-t border-slate-200 mt-12 bg-slate-100/60 relative z-10">
+        <footer className="py-6 text-center text-[10px] text-slate-450 border-t border-slate-300 mt-12 bg-slate-100/60 relative z-10">
           <p>© 2026 QMS-EDU. Bản quyền thuộc về trường Tiểu học Lương Thế Vinh.</p>
         </footer>
       </div>
