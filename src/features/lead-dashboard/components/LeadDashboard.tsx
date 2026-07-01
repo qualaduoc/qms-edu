@@ -56,6 +56,8 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loadingTeachers, setLoadingTeachers] = useState(false);
+  const [isAutoScanning, setIsAutoScanning] = useState(false);
+  const [autoScanProgress, setAutoScanProgress] = useState({ current: 0, total: 0 });
   
   // SMTP Log để hiển thị quá trình gửi Gmail
   const [smtpLog, setSmtpLog] = useState<string | null>(null);
@@ -67,6 +69,52 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
   const [submissions, setSubmissions] = useState<{ [key: string]: DemoSubmission }>({});
 
   const isReal = !!user.id;
+
+  // Hàm quét tự động Drive ngầm hàng loạt cho tất cả giáo viên
+  const autoScanAllTeachers = async (teachersList: TeacherData[]) => {
+    if (teachersList.length === 0) return;
+    setIsAutoScanning(true);
+    setAutoScanProgress({ current: 0, total: teachersList.length });
+    
+    console.log(`[Auto-Scan] Bắt đầu tự động quét ngầm cho ${teachersList.length} giáo viên...`);
+    
+    for (let i = 0; i < teachersList.length; i++) {
+      const t = teachersList[i];
+      if (t.driveFolderId) {
+        try {
+          const res = await fetch(`/api/submissions/scan?teacherId=${t.id}&weekNumber=${selectedWeek}`);
+          if (res.ok) {
+            const result = await res.json();
+            const driveFiles = result.files.map((f: any) => ({
+              fileName: f.name,
+              fileType: f.type,
+              uploadedAt: f.uploadedAt || '',
+              url: f.url
+            }));
+            
+            setSubmissions(prev => {
+              const currentSub = prev[t.id];
+              return {
+                ...prev,
+                [t.id]: {
+                  ...currentSub,
+                  files: driveFiles,
+                  submittedAt: currentSub?.submittedAt || (driveFiles.length > 0 ? new Date().toISOString() : null)
+                }
+              };
+            });
+          }
+        } catch (err) {
+          console.error(`[Auto-Scan] Lỗi quét giáo viên ${t.fullName}:`, err);
+        }
+      }
+      setAutoScanProgress(prev => ({ ...prev, current: i + 1 }));
+      // Đợi 200ms trước khi quét giáo viên tiếp theo để chống rate limit
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    setIsAutoScanning(false);
+  };
 
   // Tải danh sách giáo viên và trạng thái nộp bài thật từ Supabase
   const loadRealTeachersData = async () => {
@@ -130,11 +178,14 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
             leadNote: sub.lead_note,
             bghRating: sub.bgh_rating,
             bghFeedback: sub.bgh_feedback,
-            files: [] // Cột file sẽ được quét realtime khi bấm "Quét Drive"
+            files: [] // Quét realtime background
           };
         });
 
         setSubmissions(subMap);
+        
+        // Gọi tự động quét ngầm sau khi có danh sách
+        autoScanAllTeachers(formattedTeachers);
       }
     } catch (err) {
       console.error('Lỗi load danh sách giáo viên:', err);
@@ -465,6 +516,25 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
           </div>
         )}
 
+        {/* TIẾN TRÌNH TỰ ĐỘNG QUÉT DRIVE NGẦM */}
+        {isAutoScanning && (
+          <div className="p-4 rounded-2xl border border-indigo-100 bg-indigo-50/60 text-xs text-indigo-800 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="animate-spin text-sm">🔄</span>
+              <span>Hệ thống đang tự động quét ngầm dữ liệu Drive giáo viên...</span>
+            </div>
+            <div className="w-full sm:w-auto bg-slate-200 rounded-full h-2 overflow-hidden flex-grow max-w-[200px] mx-0 sm:mx-4">
+              <div 
+                className="bg-indigo-600 h-2 transition-all duration-300"
+                style={{ width: `${(autoScanProgress.current / autoScanProgress.total) * 100}%` }}
+              ></div>
+            </div>
+            <div className="shrink-0 text-slate-500">
+              Đã quét: <strong className="text-indigo-700">{autoScanProgress.current}</strong>/{autoScanProgress.total} giáo viên
+            </div>
+          </div>
+        )}
+
         {/* LOADING DATA INDICATOR */}
         {loadingTeachers && (
           <div className="p-4 rounded-2xl border border-slate-200 bg-white text-center text-xs text-slate-500 shadow-sm animate-pulse">
@@ -475,11 +545,13 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
         {/* DANH SÁCH GIÁO VIÊN VÀ BÁO CÁO CỦA HỌ */}
         {!loadingTeachers && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs sm:text-sm font-black text-slate-700 uppercase tracking-wider">
-                Theo dõi và Duyệt giáo án {user.grade} (Tuần {selectedWeek})
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 className="text-xs sm:text-sm font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                📋 Theo dõi và Duyệt giáo án {user.grade} (Tuần {selectedWeek})
               </h2>
-              <span className="text-[10px] text-slate-400 font-bold">Tổng số giáo viên: {teachers.length}</span>
+              <span className="text-[10px] text-slate-400 font-black uppercase bg-slate-100 px-2.5 py-1 rounded-md">
+                Tổng số giáo viên: {teachers.length}
+              </span>
             </div>
 
             {teachers.length === 0 ? (
@@ -489,76 +561,169 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
                 <p className="text-[10px] text-slate-400 mt-1 max-w-xs mx-auto">Chưa có giáo viên nào thuộc khối này đăng ký tài khoản hoặc tài khoản của họ đang ở hàng chờ phê duyệt.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
+              <div className="flex flex-col gap-3">
                 {teachers.map((teacher) => {
                   const sub = submissions[teacher.id];
                   const isScanning = scanningId === teacher.id;
 
+                  // Phân tích trạng thái nộp đủ 3 file học liệu
+                  const files = sub?.files || [];
+                  const types = files.map(f => f.fileType);
+                  const hasKHBD = types.includes('KHBD');
+                  const hasKHGD = types.includes('KHGD');
+                  const hasDCTD = types.includes('DCTD');
+                  
+                  const khbdFile = files.find(f => f.fileType === 'KHBD');
+                  const khgdFile = files.find(f => f.fileType === 'KHGD');
+                  const dctdFile = files.find(f => f.fileType === 'DCTD');
+
+                  const fileCount = (hasKHBD ? 1 : 0) + (hasKHGD ? 1 : 0) + (hasDCTD ? 1 : 0);
+                  const isComplete = fileCount === 3;
+
+                  // Xác định danh sách file còn thiếu để nhắc nhở
+                  const missingTypes = [];
+                  if (!hasKHBD) missingTypes.push('Giáo án (KHBD)');
+                  if (!hasKHGD) missingTypes.push('Phân phối giảng dạy (KHGD)');
+                  if (!hasDCTD) missingTypes.push('Điều chỉnh tiết dạy (DCTD)');
+
                   return (
-                    <div key={teacher.id} className="p-4 sm:p-5 rounded-2xl border border-slate-200/80 bg-white hover:border-slate-300 shadow-sm transition-all flex flex-col lg:flex-row gap-5 justify-between items-start lg:items-center">
-                      
-                      {/* Cột 1: Thông tin giáo viên & Ghi chú nộp */}
-                      <div className="space-y-2 lg:max-w-sm w-full">
+                    <div 
+                      key={teacher.id} 
+                      className={`p-4 rounded-xl border transition-all shadow-sm flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-white ${
+                        isComplete 
+                          ? 'border-emerald-100 hover:border-emerald-200 hover:shadow-emerald-50/20' 
+                          : fileCount > 0 
+                            ? 'border-orange-100 hover:border-orange-200' 
+                            : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {/* Cột 1: Giáo viên & Thư mục Drive */}
+                      <div className="space-y-1 md:w-1/4 shrink-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">👩‍🏫</span>
+                          <span className="text-lg">👩‍🏫</span>
                           <div>
-                            <h3 className="font-bold text-slate-800 leading-tight">{teacher.fullName}</h3>
+                            <h3 className="font-extrabold text-slate-800 text-sm leading-tight">{teacher.fullName}</h3>
                             <span className="text-[10px] text-slate-400 font-medium">{teacher.email}</span>
                           </div>
                         </div>
-
-                        <div className="text-[11px] text-slate-500 pl-7 space-y-1">
-                          <div className="break-all">📁 <strong>Thư mục Drive:</strong> <code className="text-brand-primary text-[10px]">{teacher.driveFolder}</code></div>
-                          {sub?.submittedAt ? (
-                            <div className="text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 mt-2 italic">
-                              "Gửi kèm: {sub.teacherNote || 'Không ghi chú'}"
-                            </div>
+                        <div className="text-[10px] pl-7">
+                          {teacher.driveFolderId ? (
+                            <a 
+                              href={`https://drive.google.com/drive/folders/${teacher.driveFolderId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-brand-primary font-bold hover:underline inline-flex items-center gap-1 mt-1 bg-brand-primary-light/30 border border-brand-primary-light px-2 py-0.5 rounded-full"
+                            >
+                              📁 Mở Drive GV ↗
+                            </a>
                           ) : (
-                            <div className="text-slate-400 italic mt-1">Chưa bấm xác nhận đã nộp trên App</div>
+                            <span className="text-red-500 font-bold bg-red-50 border border-red-100 px-2 py-0.5 rounded-full inline-block mt-1">
+                              ⚠️ Chưa liên kết Drive
+                            </span>
                           )}
                         </div>
                       </div>
 
-                      {/* Cột 2: Các file hiện có (Được quét từ Google Drive) */}
-                      <div className="flex-grow w-full lg:max-w-md">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Tài liệu đã quét trên Drive</div>
-                        
-                        {!sub || sub.files.length === 0 ? (
-                          <p className="text-[11px] text-slate-400 italic">Thư mục Drive trống. Click "Quét Drive" để kiểm tra học liệu thực tế.</p>
-                        ) : (
-                          <div className="space-y-1.5">
-                            {sub.files.map((file, i) => (
-                              <div key={i} className="flex items-center justify-between p-2 rounded-lg border border-slate-100 bg-slate-50 text-[11px]">
-                                {file.url ? (
-                                  <a
-                                    href={file.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-brand-primary hover:underline font-bold truncate max-w-[200px] sm:max-w-[280px]"
-                                  >
-                                    📄 {file.fileName}
-                                  </a>
-                                ) : (
-                                  <span className="text-slate-700 font-medium truncate max-w-[200px] sm:max-w-[280px]">📄 {file.fileName}</span>
-                                )}
-                                <span className="text-[9px] font-bold text-brand-primary bg-brand-primary-light/40 border border-brand-primary-light px-1.5 py-0.5 rounded uppercase shrink-0">{file.fileType}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                      {/* Cột 2: Danh sách 3 file Badge xếp ngang & Trạng thái nộp */}
+                      <div className="flex-grow w-full md:max-w-md space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* Badge KHBD (Giáo án) */}
+                          {hasKHBD && khbdFile ? (
+                            <a 
+                              href={khbdFile.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Xem file: ${khbdFile.fileName}`}
+                              className="px-2 py-1 text-[10px] font-bold rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 flex items-center gap-1 transition-all"
+                            >
+                              📄 KHBD (Giáo án)
+                            </a>
+                          ) : (
+                            <span 
+                              title="Giáo viên chưa nộp Kế hoạch bài dạy"
+                              className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 bg-slate-50 text-slate-400 line-through select-none cursor-not-allowed"
+                            >
+                              ❌ KHBD
+                            </span>
+                          )}
+
+                          {/* Badge KHGD (Kế hoạch tuần) */}
+                          {hasKHGD && khgdFile ? (
+                            <a 
+                              href={khgdFile.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Xem file: ${khgdFile.fileName}`}
+                              className="px-2 py-1 text-[10px] font-bold rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 flex items-center gap-1 transition-all"
+                            >
+                              📄 KHGD (Kế hoạch)
+                            </a>
+                          ) : (
+                            <span 
+                              title="Giáo viên chưa nộp Kế hoạch giảng dạy"
+                              className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 bg-slate-50 text-slate-400 line-through select-none cursor-not-allowed"
+                            >
+                              ❌ KHGD
+                            </span>
+                          )}
+
+                          {/* Badge DCTD (Điều chỉnh sau tiết dạy) */}
+                          {hasDCTD && dctdFile ? (
+                            <a 
+                              href={dctdFile.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Xem file: ${dctdFile.fileName}`}
+                              className="px-2 py-1 text-[10px] font-bold rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 flex items-center gap-1 transition-all"
+                            >
+                              📄 DCTD (Điều chỉnh)
+                            </a>
+                          ) : (
+                            <span 
+                              title="Giáo viên chưa nộp Điều chỉnh sau tiết dạy"
+                              className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 bg-slate-50 text-slate-400 line-through select-none cursor-not-allowed"
+                            >
+                              ❌ DCTD
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Text thông báo trạng thái nộp chuẩn hay thiếu */}
+                        <div className="text-[11px] leading-tight">
+                          {isComplete ? (
+                            <div className="text-emerald-600 font-extrabold flex items-center gap-1">
+                              <span>✓ Đã nộp đủ, vui lòng kiểm tra sơ bộ nội dung.</span>
+                            </div>
+                          ) : fileCount > 0 ? (
+                            <div className="text-orange-600 font-bold">
+                              ⚠️ Nộp thiếu: <span className="underline">{missingTypes.join(', ')}</span> (Mới có {fileCount}/3 file)
+                            </div>
+                          ) : (
+                            <div className="text-slate-400 italic">
+                              ❌ Chưa tải tài liệu nào lên Drive cho Tuần này
+                            </div>
+                          )}
+                          
+                          {/* Ghi chú đính kèm của GV nếu có */}
+                          {sub?.teacherNote && (
+                            <div className="mt-1 text-[10px] text-slate-500 italic">
+                              "Gửi kèm: {sub.teacherNote}"
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Cột 3: Trạng thái & Tác vụ kiểm duyệt */}
-                      <div className="flex flex-row lg:flex-col gap-3 w-full lg:w-auto items-center lg:items-end justify-between self-stretch pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                      <div className="flex flex-row md:flex-col lg:flex-row gap-3 md:w-auto items-center justify-between md:justify-end shrink-0 w-full pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
                         
                         {/* Badge trạng thái */}
                         <div className="text-right">
                           {!sub?.submittedAt ? (
-                            <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-slate-100 text-slate-500 border border-slate-200">Chưa nộp bài</span>
+                            <span className="px-2.5 py-1 text-[10px] font-extrabold rounded-full bg-slate-100 text-slate-500 border border-slate-200">Chưa nộp bài</span>
                           ) : sub.leadStatus === 'incomplete' ? (
-                            <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-orange-50 text-orange-600 border border-orange-200">Cần bổ sung</span>
+                            <span className="px-2.5 py-1 text-[10px] font-extrabold rounded-full bg-orange-50 text-orange-600 border border-orange-200">Cần bổ sung</span>
                           ) : (
-                            <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">✓ Đã nộp bài</span>
+                            <span className="px-2.5 py-1 text-[10px] font-extrabold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">✓ Đã nộp bài</span>
                           )}
                         </div>
 
@@ -566,18 +731,19 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleScanDrive(teacher.id, teacher.fullName)}
-                            disabled={isScanning}
-                            className="px-3 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-[10px] font-bold cursor-pointer transition-all active:scale-95 shadow-sm btn-interactive"
+                            disabled={isScanning || isAutoScanning}
+                            title="Quét lại Drive của giáo viên này"
+                            className="px-2.5 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-[10px] font-bold cursor-pointer transition-all active:scale-95 shadow-sm btn-interactive shrink-0"
                           >
-                            {isScanning ? '🔄 Đang quét...' : '🔍 Quét Drive'}
+                            {isScanning ? '🔄' : '🔍 Quét lại'}
                           </button>
 
                           <button
                             onClick={() => handleVerifyClick(teacher)}
                             disabled={!sub?.submittedAt && sub?.leadStatus === 'incomplete'}
-                            className="px-3 py-2 bg-brand-primary hover:bg-brand-primary-hover disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-100 text-white rounded-xl text-[10px] font-bold cursor-pointer transition-all active:scale-95 shadow-sm btn-interactive"
+                            className="px-2.5 py-1.5 bg-brand-primary hover:bg-brand-primary-hover disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-100 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-all active:scale-95 shadow-sm btn-interactive shrink-0"
                           >
-                            ✉ Phản hồi & Nhắc nhở
+                            ✉ Phản hồi
                           </button>
                         </div>
                       </div>
