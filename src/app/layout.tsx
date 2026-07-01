@@ -26,6 +26,32 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className="h-full antialiased" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                // Xóa thuộc tính ngay lập tức trên các phần tử hiện hữu
+                document.querySelectorAll('[bis_skin_checked]').forEach(el => el.removeAttribute('bis_skin_checked'));
+                
+                // MutationObserver để xóa các thuộc tính phát sinh do extensions tiêm vào sau đó
+                const observer = new MutationObserver((mutations) => {
+                  for (const mutation of mutations) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'bis_skin_checked') {
+                      mutation.target.removeAttribute('bis_skin_checked');
+                    }
+                  }
+                });
+                observer.observe(document.documentElement, {
+                  attributes: true,
+                  subtree: true,
+                  attributeFilter: ['bis_skin_checked']
+                });
+              })();
+            `
+          }}
+        />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-full bg-slate-50 text-slate-900 font-sans`} suppressHydrationWarning>
         <ToastProvider>
           {children}
