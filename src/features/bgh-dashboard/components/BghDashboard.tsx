@@ -51,7 +51,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
   const [isElite, setIsElite] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [selectedEliteFile, setSelectedEliteFile] = useState<TeacherFile | null>(null);
+  const [selectedEliteFiles, setSelectedEliteFiles] = useState<TeacherFile[]>([]);
 
   // Dữ liệu đánh giá chi tiết theo tiêu chí
   const [criteriaRatings, setCriteriaRatings] = useState<{ [key: string]: string }>({
@@ -162,7 +162,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
       setBghRating(EVALUATION_LEVELS.DAT);
       setBghFeedback('');
       setIsElite(false);
-      setSelectedEliteFile(null);
+      setSelectedEliteFiles([]);
       setCriteriaRatings({
         'muc_tiêu': EVALUATION_LEVELS.DAT,
         'hoat_dong': EVALUATION_LEVELS.DAT,
@@ -195,7 +195,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
     setBghRating(EVALUATION_LEVELS.DAT);
     setBghFeedback('');
     setIsElite(false);
-    setSelectedEliteFile(null);
+    setSelectedEliteFiles([]);
     setCriteriaRatings({
       'muc_tiêu': EVALUATION_LEVELS.DAT,
       'hoat_dong': EVALUATION_LEVELS.DAT,
@@ -221,15 +221,21 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
     showToast(`Đã chọn Thầy/Cô ${teacher.fullName} để đánh giá chất lượng ${weekDisplay}.`, 'info');
   };
   const handleToggleEliteFile = (file: TeacherFile) => {
-    if (selectedEliteFile?.name === file.name) {
-      setSelectedEliteFile(null);
-      setIsElite(false);
-      showToast('Đã hủy vinh danh tệp tin này.', 'info');
-    } else {
-      setSelectedEliteFile(file);
-      setIsElite(true);
-      showToast(`Đã chọn vinh danh tệp tin: ${file.name}`, 'success');
-    }
+    setSelectedEliteFiles(prev => {
+      const exists = prev.some(f => f.name === file.name);
+      let updated: TeacherFile[] = [];
+      if (exists) {
+        updated = prev.filter(f => f.name !== file.name);
+        showToast(`Đã hủy chọn tệp tin: ${file.name}`, 'info');
+      } else {
+        updated = [...prev, file];
+        showToast(`Đã chọn vinh danh tệp tin: ${file.name}`, 'success');
+      }
+      
+      // Tự động tích chọn checkbox Bài học mẫu mực khi có ít nhất 1 file được chọn vinh danh
+      setIsElite(updated.length > 0);
+      return updated;
+    });
   };
   // Lưu nhận xét thi đua thật vào database
   const handleSaveEvaluation = async (e: React.FormEvent) => {
@@ -241,7 +247,20 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
     
     if (isReal && user.id) {
       try {
-        const eliteFile = selectedEliteFile || scannedFiles.find(f => f.type === FILE_TYPES.KHBD);
+        // Tên file và link Drive được ghép cách nhau bằng ký tự " | " để lưu nhiều file
+        let eliteFileName = null;
+        let eliteFileUrl = null;
+
+        if (selectedEliteFiles.length > 0) {
+          eliteFileName = selectedEliteFiles.map(f => f.name).join(' | ');
+          eliteFileUrl = selectedEliteFiles.map(f => f.url).join(' | ');
+        } else if (isElite) {
+          // Fallback nếu BGH check checkbox mà quên click nút chọn cụ thể ở trên
+          const fallbackFile = scannedFiles.find(f => f.type === FILE_TYPES.KHBD);
+          eliteFileName = fallbackFile?.name || null;
+          eliteFileUrl = fallbackFile?.url || null;
+        }
+
         const response = await fetch('/api/bgh/evaluate', {
           method: 'POST',
           headers: {
@@ -256,8 +275,8 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
             bghId: user.id,
             isElite: isElite,
             criteriaRatings: criteriaRatings,
-            eliteFileName: eliteFile?.name || null,
-            eliteFileUrl: eliteFile?.url || null
+            eliteFileName: eliteFileName,
+            eliteFileUrl: eliteFileUrl
           }),
         });
 
@@ -597,12 +616,12 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                                 type="button"
                                 onClick={() => handleToggleEliteFile(file)}
                                 className={`px-2 py-1 rounded text-[9px] font-black border transition-all cursor-pointer flex items-center gap-1 ${
-                                  selectedEliteFile?.name === file.name
+                                  selectedEliteFiles.some(f => f.name === file.name)
                                     ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
                                     : 'bg-white text-amber-600 border-amber-200 hover:bg-amber-50'
                                 }`}
                               >
-                                🏆 {selectedEliteFile?.name === file.name ? 'Học liệu vàng' : 'Vinh danh'}
+                                🏆 {selectedEliteFiles.some(f => f.name === file.name) ? 'Học liệu vàng' : 'Vinh danh'}
                               </button>
                             </div>
                           </div>
@@ -675,9 +694,9 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                      <div>
                        <h5 className="text-xs font-bold text-slate-800">Bài học mẫu mực</h5>
                        <p className="text-[10px] text-slate-400 mt-0.5">
-                         {selectedEliteFile 
-                           ? `Đang vinh danh: ${selectedEliteFile.name.substring(0, 30)}...` 
-                           : 'Tích chọn nút 🏆 Vinh danh ở danh sách tệp bên trên'}
+                         {selectedEliteFiles.length > 0
+                           ? `Đang vinh danh: ${selectedEliteFiles.length} tệp tin đã chọn`
+                           : 'Tích chọn các nút 🏆 Vinh danh ở danh sách tệp bên trên'}
                        </p>
                      </div>
                      <input
@@ -686,11 +705,11 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                        onChange={e => {
                          setIsElite(e.target.checked);
                          if (!e.target.checked) {
-                           setSelectedEliteFile(null);
-                         } else if (!selectedEliteFile && scannedFiles.length > 0) {
+                           setSelectedEliteFiles([]);
+                         } else if (selectedEliteFiles.length === 0 && scannedFiles.length > 0) {
                            // Tự động tìm file KHBD đầu tiên làm mặc định nếu Khầy tick mà chưa chọn ở trên
                            const firstKhbd = scannedFiles.find(f => f.type === FILE_TYPES.KHBD);
-                           if (firstKhbd) setSelectedEliteFile(firstKhbd);
+                           if (firstKhbd) setSelectedEliteFiles([firstKhbd]);
                          }
                        }}
                        className="h-5 w-5 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
