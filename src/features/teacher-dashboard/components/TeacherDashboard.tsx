@@ -495,7 +495,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
       {/* 2. MAIN LAYOUT (Sidebar chọn Tuần + Main Content) */}
       <div className="flex-grow flex flex-col md:flex-row">
         
-        {/* SIDEBAR BÊN TRÁI: Chọn Tuần (dễ dùng, khoa học giống OLM) */}
+        {/* SIDEBAR BÊN TRÁI: Chọn Tuần */}
         <aside className="w-full md:w-64 border-r border-slate-200 bg-white p-4 shrink-0 flex flex-col gap-3 shadow-sm">
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider px-2">
             Tuần dạy học (Năm học 2026-2027)
@@ -540,7 +540,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
         </aside>
 
         {/* CỘT CHÍNH: Form nộp & xem trạng thái duyệt của Tuần đã chọn */}
-        <main className="flex-grow p-6 lg:p-10 max-w-4xl space-y-6">
+        <main className="flex-grow p-6 lg:p-10 max-w-5xl space-y-6">
           
           {/* Banner thông báo trạng thái nộp thành công */}
           {notification && (
@@ -641,98 +641,146 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
               Học liệu & Báo cáo Tuần nộp
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {Object.keys(FILE_TYPE_LABELS).map((type) => {
-                const typeFiles = files[type] || [];
-                const isUploading = uploadingTypes[type];
-                
-                const reqCount = type === FILE_TYPES.KHBD 
-                  ? (deadlineConfig?.khbd_required_files !== null && deadlineConfig?.khbd_required_files !== undefined ? Number(deadlineConfig.khbd_required_files) : 2) 
-                  : type === FILE_TYPES.KHGD 
-                    ? (deadlineConfig?.khgd_required_files !== null && deadlineConfig?.khgd_required_files !== undefined ? Number(deadlineConfig.khgd_required_files) : 1) 
-                    : (deadlineConfig?.dctd_required_files !== null && deadlineConfig?.dctd_required_files !== undefined ? Number(deadlineConfig.dctd_required_files) : 1);
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+              
+              {/* Cột Trái (3 Card Nộp Học Liệu) */}
+              <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                {Object.keys(FILE_TYPE_LABELS).map((type) => {
+                  const typeFiles = files[type] || [];
+                  const isUploading = uploadingTypes[type];
+                  
+                  const reqCount = type === FILE_TYPES.KHBD 
+                    ? (deadlineConfig?.khbd_required_files !== null && deadlineConfig?.khbd_required_files !== undefined ? Number(deadlineConfig.khbd_required_files) : 2) 
+                    : type === FILE_TYPES.KHGD 
+                      ? (deadlineConfig?.khgd_required_files !== null && deadlineConfig?.khgd_required_files !== undefined ? Number(deadlineConfig.khgd_required_files) : 1) 
+                      : (deadlineConfig?.dctd_required_files !== null && deadlineConfig?.dctd_required_files !== undefined ? Number(deadlineConfig.dctd_required_files) : 1);
 
-                return (
-                  <div key={type} className="p-5 rounded-2xl border border-slate-300 bg-white hover:border-brand-primary transition-all flex flex-col justify-between min-h-[220px] shadow-sm relative group">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-brand-primary bg-brand-primary-light/50 border border-brand-primary-light px-2 py-0.5 rounded-full uppercase">
-                          {type}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-bold bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
-                          Yêu cầu: {typeFiles.length}/{reqCount} file
-                        </span>
-                      </div>
-                      
-                      <h4 className="text-xs font-black text-slate-800 leading-tight">
-                        {FILE_TYPE_LABELS[type as keyof typeof FILE_TYPE_LABELS]}
-                      </h4>
-                      
-                      {isUploading ? (
-                        <div className="flex items-center gap-2 text-[10px] text-brand-primary font-bold mt-3">
-                          <span className="animate-spin">🔄</span> Đang xử lý...
+                  return (
+                    <div key={type} className="p-5 rounded-2xl border border-slate-300 bg-white hover:border-brand-primary transition-all flex flex-col justify-between min-h-[225px] shadow-sm relative group">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black text-brand-primary bg-brand-primary-light/50 border border-brand-primary-light px-2 py-0.5 rounded-full uppercase">
+                            {type}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-450 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                            Yêu cầu: {typeFiles.length}/{reqCount} file
+                          </span>
                         </div>
-                      ) : typeFiles.length > 0 ? (
-                        <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
-                          {typeFiles.map((file) => (
-                            <div 
-                              key={file.id || file.name} 
-                              className="flex justify-between items-center gap-2 p-2 bg-slate-50 border border-slate-300 rounded-xl text-[10px] text-slate-650 leading-snug shadow-sm"
-                            >
-                              <div className="truncate flex-grow font-bold">
-                                {file.url ? (
-                                  <a
-                                    href={file.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-brand-primary hover:underline truncate block"
-                                  >
-                                    📄 {file.name}
-                                  </a>
-                                ) : (
-                                  <span className="truncate block text-slate-700">📄 {file.name}</span>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                disabled={isUploading}
-                                onClick={() => handleRemoveFile(type, file.id || '')}
-                                className="text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg p-1.5 transition-all cursor-pointer shadow-sm shrink-0 active:scale-90"
-                                title="Xóa tệp tin"
+                        
+                        <h4 className="text-xs font-bold text-slate-700 leading-snug">
+                          {FILE_TYPE_LABELS[type as keyof typeof FILE_TYPE_LABELS]}
+                        </h4>
+
+                        {isUploading ? (
+                          <div className="flex flex-col items-center justify-center py-6 text-slate-400 mt-2">
+                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-primary border-t-transparent"></div>
+                            <span className="text-[9px] font-medium mt-1">Đang tải lên...</span>
+                          </div>
+                        ) : typeFiles.length > 0 ? (
+                          <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
+                            {typeFiles.map((file) => (
+                              <div 
+                                key={file.id || file.name} 
+                                className="flex justify-between items-center gap-2 p-2 bg-slate-50 border border-slate-300 rounded-xl text-[10px] text-slate-650 leading-snug shadow-sm"
                               >
-                                🗑️
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-[10px] text-slate-400 mt-2 font-medium">
-                          Chưa tải tài liệu lên. Quy chuẩn tên file: <code className="text-brand-primary block mt-1">{type}_Tuan{String(selectedWeek).padStart(2, '0')}_{[user.fullName.replace(/\s+/g, '')]}_TenFile.docx/pdf/xlsx</code>
-                        </p>
-                      )}
-                    </div>
+                                <div className="truncate flex-grow font-bold">
+                                  {file.url ? (
+                                    <a
+                                      href={file.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-brand-primary hover:underline truncate block"
+                                    >
+                                      📄 {file.name}
+                                    </a>
+                                  ) : (
+                                    <span className="truncate block text-slate-700">📄 {file.name}</span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={isUploading}
+                                  onClick={() => handleRemoveFile(type, file.id || '')}
+                                  className="text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg p-1.5 transition-all cursor-pointer shadow-sm shrink-0 active:scale-90"
+                                  title="Xóa tệp tin"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-6 text-slate-400 bg-slate-50/50 border border-dashed border-slate-200 rounded-xl mt-2 select-none">
+                            <span className="text-lg mb-0.5">📤</span>
+                            <p className="text-[10px] font-bold text-slate-400">Chưa nộp tệp tin</p>
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="mt-4 pt-3 border-t border-slate-300">
-                      {typeFiles.length < reqCount ? (
-                        <label className="w-full block text-center py-2 bg-brand-primary-light/40 hover:bg-brand-primary-light/60 text-brand-primary border border-brand-primary-light rounded-xl text-[10px] font-bold cursor-pointer transition-colors btn-interactive shadow-sm">
-                          Tải tài liệu lên ({typeFiles.length}/{reqCount})
-                          <input
-                            type="file"
-                            accept=".doc,.docx,.pdf,.xls,.xlsx"
-                            disabled={isUploading}
-                            onChange={(e) => handleFileUpload(type, e, typeFiles.length + 1)}
-                            className="hidden"
-                          />
-                        </label>
-                      ) : (
-                        <div className="w-full text-center py-2 bg-emerald-50 text-emerald-600 border border-emerald-150 rounded-xl text-[10px] font-bold select-none shadow-sm">
-                          ✓ Đã nộp đủ ({typeFiles.length}/{reqCount})
-                        </div>
-                      )}
+                      <div className="mt-4 pt-3 border-t border-slate-300">
+                        {typeFiles.length < reqCount ? (
+                          <label className="w-full block text-center py-2 bg-brand-primary-light/40 hover:bg-brand-primary-light/60 text-brand-primary border border-brand-primary-light rounded-xl text-[10px] font-bold cursor-pointer transition-colors btn-interactive shadow-sm">
+                            Tải tài liệu lên ({typeFiles.length}/{reqCount})
+                            <input
+                              type="file"
+                              accept=".doc,.docx,.pdf,.xls,.xlsx"
+                              disabled={isUploading}
+                              onChange={(e) => handleFileUpload(type, e, typeFiles.length + 1)}
+                              className="hidden"
+                            />
+                          </label>
+                        ) : (
+                          <div className="w-full text-center py-2 bg-emerald-50 text-emerald-600 border border-emerald-150 rounded-xl text-[10px] font-bold select-none shadow-sm">
+                            ✓ Đã nộp đủ ({typeFiles.length}/{reqCount})
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Cột Phải (Panel Hướng Dẫn - Style Wow Design) */}
+              <div className="lg:col-span-1 p-5 rounded-2xl border border-slate-300 bg-white shadow-sm space-y-4">
+                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                  📋 Quy định & Quy chuẩn
+                </h4>
+                
+                <div className="space-y-3.5 text-[10px] leading-relaxed text-slate-600 font-medium">
+                  {/* Định dạng cho phép */}
+                  <div className="space-y-1">
+                    <span className="font-bold text-slate-800 block uppercase tracking-wider">📁 Định dạng cho phép</span>
+                    <div className="flex flex-wrap gap-1">
+                      {['doc', 'docx', 'pdf', 'xls', 'xlsx'].map(ext => (
+                        <span key={ext} className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-650 font-bold uppercase">{ext}</span>
+                      ))}
                     </div>
                   </div>
-                );
-              })}
+
+                  {/* Giới hạn dung lượng */}
+                  <div className="space-y-1">
+                    <span className="font-bold text-slate-800 block uppercase tracking-wider">⚡ Giới hạn dung lượng</span>
+                    <p>Tối đa <strong className="text-orange-600 font-bold">15MB</strong> mỗi tệp tin tải lên.</p>
+                  </div>
+
+                  {/* Quy chuẩn đặt tên */}
+                  <div className="space-y-1">
+                    <span className="font-bold text-slate-800 block uppercase tracking-wider">🏷️ Quy chuẩn đặt tên tệp</span>
+                    <p className="text-[9px] text-slate-500 mb-1">Hệ thống tự động đổi tên tệp của Thầy/Cô khi lưu trên Google Drive trường:</p>
+                    <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg space-y-1 font-mono text-[9px] leading-normal text-brand-primary break-all">
+                      <div>[Loại]_Tuan[Tuần]_[HọTên]_[TênFileGốc]_[STT].[Đuôi]</div>
+                    </div>
+                    <p className="text-[9px] text-slate-450 mt-1 italic">Ví dụ: KHBD_Tuan01_ToilagiaovienK1_Toan_1.docx</p>
+                  </div>
+
+                  {/* Ghi chú */}
+                  <div className="p-2.5 bg-amber-50/50 border border-amber-200/60 rounded-xl text-slate-650 space-y-1">
+                    <span className="font-bold text-amber-800 block">💡 Lưu ý:</span>
+                    <p>Vui lòng đặt tên tệp tin gốc trên máy tính ngắn gọn, rõ ràng (ví dụ: Toan, TiengViet) để phân biệt nội dung các tệp tin cùng loại.</p>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
 
