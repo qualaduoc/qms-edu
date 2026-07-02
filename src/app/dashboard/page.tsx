@@ -305,10 +305,10 @@ export default function DashboardPage() {
               <div className="absolute top-0 right-0 p-6 text-4xl group-hover:scale-110 transition-transform duration-300">💼</div>
               <div className="space-y-4">
                 <div className="text-xs font-black text-brand-primary bg-brand-primary-light/40 border border-brand-primary-light px-3 py-1 rounded-full uppercase tracking-wider inline-block">
-                  Nghiệp vụ Chuyên môn
+                  Nghiệp vụ Sư phạm
                 </div>
                 <h2 className="text-xl sm:text-2xl font-black text-slate-800 group-hover:text-brand-primary transition-colors">
-                  Khu Vực Làm Việc
+                  Không gian chuyên môn
                 </h2>
                 <p className="text-xs text-slate-400 leading-relaxed font-medium">
                   {user.role === 'teacher' && 'Tải lên học liệu giảng dạy, theo dõi tiến độ nộp bài và xem nhận xét phê duyệt từ Khối trưởng & BGH.'}
@@ -318,7 +318,7 @@ export default function DashboardPage() {
                 </p>
               </div>
               <div className="pt-6 border-t border-slate-800/60 flex items-center justify-between">
-                <span className="text-[10px] text-brand-primary font-bold uppercase tracking-wider">Truy cập khu vực làm việc</span>
+                <span className="text-[10px] text-brand-primary font-bold uppercase tracking-wider">Vào không gian chuyên môn</span>
                 <span className="h-8 w-8 rounded-full bg-slate-100 group-hover:bg-brand-primary flex items-center justify-center text-slate-400 group-hover:text-white transition-colors">➔</span>
               </div>
             </div>
