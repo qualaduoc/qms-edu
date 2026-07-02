@@ -32,12 +32,26 @@ interface TeacherFile {
   uploadedAt: string;
 }
 
+interface EvaluationHistoryItem {
+  weekNumber: number;
+  rating: string;
+  feedback: string;
+  updatedAt: string;
+  teacherName: string;
+  teacherGrade: string;
+  teacherEmail: string;
+  teacherNote: string;
+  eliteFileName?: string | null;
+  eliteFileUrl?: string | null;
+}
+
 export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
   const { showToast } = useToast();
   const schoolStartDate = '2026-09-01';
   const currentWeek = getCurrentWeek(schoolStartDate);
   const totalWeeks = 35;
   
+  const [activeTab, setActiveTab] = useState<'evaluate' | 'history'>('evaluate');
   const [selectedWeek, setSelectedWeek] = useState<number | 'all'>(currentWeek);
   const [selectedGrade, setSelectedGrade] = useState<string>('all');
   const [randomTeacher, setRandomTeacher] = useState<TeacherMockData | null>(null);
@@ -64,6 +78,14 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
   });
 
   const [teachersList, setTeachersList] = useState<TeacherMockData[]>([]);
+  
+  // States dành cho Lịch sử Đánh giá của BGH
+  const [evaluationHistoryList, setEvaluationHistoryList] = useState<EvaluationHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [historyGradeFilter, setHistoryGradeFilter] = useState('all');
+  const [historyRatingFilter, setHistoryRatingFilter] = useState('all');
+
   const isReal = !!user.id;
 
   // Tải danh sách giáo viên thật từ database Supabase
@@ -92,11 +114,71 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
     }
   };
 
+  // Tải lịch sử đánh giá đã diễn ra của BGH
+  const loadEvaluationHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      if (isReal) {
+        const { data, error } = await supabase
+          .from('submissions')
+          .select(`
+            week_number,
+            bgh_rating,
+            bgh_feedback,
+            updated_at,
+            submitted_at,
+            teacher_note,
+            elite_file_name,
+            elite_file_url,
+            profiles:teacher_id (
+              id,
+              full_name,
+              grade,
+              email
+            )
+          `)
+          .not('bgh_rating', 'is', null)
+          .order('updated_at', { ascending: false });
+
+        if (error) throw error;
+        
+        const formatted: EvaluationHistoryItem[] = (data || []).map(d => ({
+          weekNumber: d.week_number,
+          rating: d.bgh_rating || '',
+          feedback: d.bgh_feedback || '',
+          updatedAt: d.updated_at,
+          teacherName: (d.profiles as any)?.full_name || 'Giáo viên ẩn',
+          teacherGrade: (d.profiles as any)?.grade || 'Khối 1',
+          teacherEmail: (d.profiles as any)?.email || '',
+          teacherNote: d.teacher_note || '',
+          eliteFileName: d.elite_file_name || null,
+          eliteFileUrl: d.elite_file_url || null,
+        }));
+        setEvaluationHistoryList(formatted);
+      } else {
+        // Chế độ demo
+        setTimeout(() => {
+          const mockHistory: EvaluationHistoryItem[] = [
+            { weekNumber: 1, rating: EVALUATION_LEVELS.TOT, feedback: 'Giáo án soạn rất bám sát thực tế, tiến trình dạy học logic.', updatedAt: '2026-09-05T17:00:00Z', teacherName: 'Nguyễn Văn An', teacherGrade: 'Khối 1', teacherEmail: 'an.nv@school.edu.vn', teacherNote: 'Đã nộp đủ' },
+            { weekNumber: 2, rating: EVALUATION_LEVELS.XUAT_SAC, feedback: 'Giáo án xuất sắc, các hoạt động trải nghiệm thiết kế sáng tạo.', updatedAt: '2026-09-12T08:30:00Z', teacherName: 'Lê Thị Bình', teacherGrade: 'Khối 1', teacherEmail: 'binh.lt@school.edu.vn', teacherNote: 'Đã nộp đủ', eliteFileName: 'KHBD_Tuan02_LeThiBinh.docx', eliteFileUrl: '#' },
+            { weekNumber: 1, rating: EVALUATION_LEVELS.DAT, feedback: 'Đạt yêu cầu, cần đa dạng thêm hoạt động nhóm học sinh.', updatedAt: '2026-09-06T09:15:00Z', teacherName: 'Vũ Thị Mai', teacherGrade: 'Khối 2', teacherEmail: 'mai.vt@school.edu.vn', teacherNote: 'Gửi tổ chuyên môn' },
+          ];
+          setEvaluationHistoryList(mockHistory);
+        }, 850);
+      }
+    } catch (err) {
+      console.error('Lỗi load evaluation history:', err);
+      showToast('Không thể tải lịch sử đánh giá thi đua.', 'error');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   useEffect(() => {
     if (isReal) {
       loadRealTeachers();
+      loadEvaluationHistory();
     } else {
-      // Mock teachers list cho demo mode
       const allTeachers: TeacherMockData[] = [
         { id: 't1', fullName: 'Nguyễn Văn An', grade: 'Khối 1', email: 'ledinhphuonglanltv@gmail.com', submittedCount: 3 },
         { id: 't2', fullName: 'Lê Thị Bình', grade: 'Khối 1', email: 'binh.lt@school.edu.vn', submittedCount: 3 },
@@ -108,6 +190,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
         { id: 't8', fullName: 'Nguyễn Minh Thư', grade: 'Bộ môn đặc thù', email: 'thu.nm@school.edu.vn', submittedCount: 3 },
       ];
       setTeachersList(allTeachers);
+      loadEvaluationHistory();
     }
   }, [user.id, isReal]);
 
@@ -172,26 +255,23 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
         'trinh_bay': EVALUATION_LEVELS.DAT,
       });
 
-      // Nếu chạy thật -> quét Drive của giáo viên được bốc trúng
       if (isReal) {
         await loadTeacherRealFiles(chosenTeacher.id);
       } else {
-        // Mock files của giáo viên bốc thăm trúng ở demo mode
         setScannedFiles([
-          { name: `KHBD_Tuan${String(selectedWeek).padStart(2, '0')}_${chosenTeacher.fullName.replace(/\s+/g, '')}.docx`, type: FILE_TYPES.KHBD, url: '#', uploadedAt: '2026-09-12' },
-          { name: `KHGD_Tuan${String(selectedWeek).padStart(2, '0')}_${chosenTeacher.fullName.replace(/\s+/g, '')}.docx`, type: FILE_TYPES.KHGD, url: '#', uploadedAt: '2026-09-12' },
+          { name: `KHBD_Tuan${String(selectedWeek === 'all' ? currentWeek : selectedWeek).padStart(2, '0')}_NguyenVanAn.docx`, url: '#', type: FILE_TYPES.KHBD, uploadedAt: '2026-09-12' },
+          { name: `KHGD_Tuan${String(selectedWeek === 'all' ? currentWeek : selectedWeek).padStart(2, '0')}_NguyenVanAn.docx`, url: '#', type: FILE_TYPES.KHGD, uploadedAt: '2026-09-12' }
         ]);
       }
-    }, 1200);
+    }, 1500);
   };
 
-  // Bấm chọn thủ công giáo viên từ danh sách
+  // Chọn giáo viên thủ công từ danh sách bên trái
   const handleSelectTeacherManual = async (teacher: TeacherMockData) => {
-    setRandomTeacher(teacher);
     setSaveSuccess(false);
-    setScannedFiles([]);
+    setRandomTeacher(teacher);
     
-    // Reset form đánh giá về trạng thái mặc định
+    // Reset form đánh giá
     setBghRating(EVALUATION_LEVELS.DAT);
     setBghFeedback('');
     setIsElite(false);
@@ -205,55 +285,41 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
       'trinh_bay': EVALUATION_LEVELS.DAT,
     });
 
-    // Nếu chạy thật -> quét Drive của giáo viên được chọn
     if (isReal) {
       await loadTeacherRealFiles(teacher.id);
     } else {
-      const weekLabel = selectedWeek === 'all' ? currentWeek : selectedWeek;
-      const weekStr = String(weekLabel).padStart(2, '0');
       setScannedFiles([
-        { name: `KHBD_Tuan${weekStr}_${teacher.fullName.replace(/\s+/g, '')}.docx`, type: FILE_TYPES.KHBD, url: '#', uploadedAt: '2026-09-12' },
-        { name: `KHGD_Tuan${weekStr}_${teacher.fullName.replace(/\s+/g, '')}.docx`, type: FILE_TYPES.KHGD, url: '#', uploadedAt: '2026-09-12' },
+        { name: `KHBD_Tuan${String(selectedWeek === 'all' ? currentWeek : selectedWeek).padStart(2, '0')}_${teacher.fullName.replace(/\s+/g, '')}.docx`, url: '#', type: FILE_TYPES.KHBD, uploadedAt: '2026-09-12' },
+        { name: `KHGD_Tuan${String(selectedWeek === 'all' ? currentWeek : selectedWeek).padStart(2, '0')}_${teacher.fullName.replace(/\s+/g, '')}.docx`, url: '#', type: FILE_TYPES.KHGD, uploadedAt: '2026-09-12' }
       ]);
     }
-    
-    const weekDisplay = selectedWeek === 'all' ? `Tất cả các tuần (đánh giá tuần ${currentWeek})` : `Tuần ${selectedWeek}`;
-    showToast(`Đã chọn Thầy/Cô ${teacher.fullName} để đánh giá chất lượng ${weekDisplay}.`, 'info');
   };
+
+  // Bấm chọn file vinh danh từ danh sách tài liệu quét được
   const handleToggleEliteFile = (file: TeacherFile) => {
     setSelectedEliteFiles(prev => {
       const exists = prev.some(f => f.name === file.name);
-      let updated: TeacherFile[] = [];
       if (exists) {
-        updated = prev.filter(f => f.name !== file.name);
-        showToast(`Đã hủy chọn tệp tin: ${file.name}`, 'info');
+        const filtered = prev.filter(f => f.name !== file.name);
+        if (filtered.length === 0) setIsElite(false);
+        return filtered;
       } else {
-        updated = [...prev, file];
-        showToast(`Đã chọn vinh danh tệp tin: ${file.name}`, 'success');
+        setIsElite(true);
+        return [...prev, file];
       }
-      
-      // Tự động tích chọn checkbox Bài học mẫu mực khi có ít nhất 1 file được chọn vinh danh
-      setIsElite(updated.length > 0);
-      return updated;
     });
   };
-  // Lưu nhận xét thi đua thật vào database
+
+  // Nộp form Đánh giá chất lượng sư phạm lên database Supabase
   const handleSaveEvaluation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!randomTeacher) return;
-
-    // Ngăn chặn vinh danh khi không có tệp tin hoặc Drive chưa quét xong
-    if (isElite && selectedEliteFiles.length === 0 && scannedFiles.length === 0) {
-      showToast('Thầy/Cô vui lòng đợi hệ thống quét xong tệp tin trên Drive để chọn học liệu vinh danh nhé!', 'warning');
-      return;
-    }
 
     setIsSaving(true);
     const evaluationWeek = selectedWeek === 'all' ? currentWeek : selectedWeek;
     
     if (isReal && user.id) {
       try {
-        // Tên file và link Drive được ghép cách nhau bằng ký tự " | " để lưu nhiều file
         let eliteFileName = null;
         let eliteFileUrl = null;
 
@@ -261,7 +327,6 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
           eliteFileName = selectedEliteFiles.map(f => f.name).join(' | ');
           eliteFileUrl = selectedEliteFiles.map(f => f.url).join(' | ');
         } else if (isElite) {
-          // Fallback nếu BGH check checkbox mà quên click nút chọn cụ thể ở trên
           const fallbackFile = scannedFiles.find(f => f.type === FILE_TYPES.KHBD);
           eliteFileName = fallbackFile?.name || null;
           eliteFileUrl = fallbackFile?.url || null;
@@ -291,7 +356,6 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
           throw new Error(result.error || 'Lỗi khi lưu kết quả đánh giá.');
         }
 
-        // Nếu được tích xanh "Bài học mẫu mực" -> vinh danh vào Kho học liệu vàng
         if (isElite) {
           const storedElites = localStorage.getItem('qms_elite_lessons') || '[]';
           const elites = JSON.parse(storedElites);
@@ -314,6 +378,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
         setSaveSuccess(true);
         showToast(`Đã lưu kết quả thanh tra chất lượng và đánh giá thi đua cho Thầy/Cô ${randomTeacher.fullName} thành công! (Tuần ${evaluationWeek})`, 'success');
         setRandomTeacher(null);
+        await loadEvaluationHistory(); // Cập nhật lại lịch sử
       } catch (err: any) {
         console.error('Lỗi lưu đánh giá BGH:', err);
         showToast(`Lưu đánh giá thất bại: ${err.message}`, 'error');
@@ -347,16 +412,43 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
         
         showToast(`Đã lưu kết quả kiểm duyệt và đánh giá thi đua cho giáo viên ${randomTeacher.fullName} thành công! (Tuần ${evaluationWeek})`, 'success');
         setRandomTeacher(null);
+        
+        // Cập nhật demo history
+        const newHistoryItem: EvaluationHistoryItem = {
+          weekNumber: evaluationWeek,
+          rating: bghRating,
+          feedback: bghFeedback,
+          updatedAt: new Date().toISOString(),
+          teacherName: randomTeacher.fullName,
+          teacherGrade: randomTeacher.grade,
+          teacherEmail: randomTeacher.email,
+          teacherNote: 'Đã hoàn thành nộp bài',
+          eliteFileName: isElite ? (selectedEliteFiles[0]?.name || 'KHBD.docx') : null,
+          eliteFileUrl: isElite ? '#' : null,
+        };
+        setEvaluationHistoryList(prev => [newHistoryItem, ...prev]);
       }, 1000);
     }
   };
 
-  // Danh sách các tiêu chí đánh giá
-  const CRITERIA = [
-    { key: 'muc_tiêu', label: '1. Mục tiêu bài dạy (Kiến thức, năng lực, phẩm chất)' },
-    { key: 'hoat_dong', label: '2. Tiến trình và chuỗi hoạt động học của học sinh' },
-    { key: 'phuong_phap', label: '3. Phương pháp, kĩ thuật dạy học tích cực áp dụng' },
-    { key: 'thiet_bi', label: '4. Thiết bị dạy học và học liệu sử dụng phù hợp' },
+  // Lọc lịch sử nhận xét đánh giá của BGH
+  const filteredHistoryList = evaluationHistoryList.filter(item => {
+    const searchMatch = 
+      item.teacherName.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
+      item.teacherEmail.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
+      (item.feedback || '').toLowerCase().includes(historySearchTerm.toLowerCase());
+
+    const gradeMatch = historyGradeFilter === 'all' ? true : item.teacherGrade === historyGradeFilter;
+    const ratingMatch = historyRatingFilter === 'all' ? true : item.rating === historyRatingFilter;
+
+    return searchMatch && gradeMatch && ratingMatch;
+  });
+
+  const criteriaDetails = [
+    { key: 'muc_tiêu', label: '1. Xây dựng mục tiêu bài học (Kiến thức, năng lực, phẩm chất)' },
+    { key: 'hoat_dong', label: '2. Chuỗi các hoạt động học tập của học sinh' },
+    { key: 'phuong_phap', label: '3. Phương pháp giảng dạy chuyên môn của giáo viên' },
+    { key: 'thiet_bi', label: '4. Thiết bị dạy học và học liệu sư phạm sử dụng' },
     { key: 'danh_gia', label: '5. Phương án kiểm tra, đánh giá kết quả hoạt động' },
     { key: 'trinh_bay', label: '6. Trình bày khoa học, phần điều chỉnh thực tế sâu sắc' },
   ];
@@ -403,264 +495,299 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
         </div>
       </header>
 
-      {/* SUB HEADER - WEEK & GRADE FILTER */}
-      <div className="bg-white border-b border-slate-200/80 px-6 py-3 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shadow-sm">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-bold text-slate-500 uppercase">Chọn Tuần học:</label>
-            <select
-              value={selectedWeek}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedWeek(val === 'all' ? 'all' : Number(val));
-                setRandomTeacher(null);
-                setSaveSuccess(false);
-              }}
-              className="bg-white border border-slate-200 text-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-brand-primary cursor-pointer shadow-sm"
-            >
-              <option value="all">Tất cả các tuần</option>
-              {Array.from({ length: totalWeeks }, (_, i) => i + 1).map(w => (
-                <option key={w} value={w}>Tuần {w}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-bold text-slate-500 uppercase">Chọn Khối khảo sát:</label>
-            <select
-              value={selectedGrade}
-              onChange={(e) => {
-                setSelectedGrade(e.target.value);
-                setRandomTeacher(null);
-                setSaveSuccess(false);
-              }}
-              className="bg-white border border-slate-200 text-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-brand-primary cursor-pointer shadow-sm"
-            >
-              <option value="all">Tất cả các khối</option>
-              <option value="Khối 1">Khối 1</option>
-              <option value="Khối 2">Khối 2</option>
-              <option value="Khối 3">Khối 3</option>
-              <option value="Khối 4">Khối 4</option>
-              <option value="Khối 5">Khối 5</option>
-              <option value="Bộ môn đặc thù">Bộ môn đặc thù</option>
-            </select>
-          </div>
-        </div>
-
+      {/* TABS NAVIGATION BAR (Style Wow Design) */}
+      <nav className="bg-white border-b border-slate-200 px-6 py-2.5 flex gap-2 shadow-sm">
         <button
-          onClick={() => window.location.href = '/dashboard/library'}
-          className="px-4 py-2 bg-brand-accent hover:bg-brand-accent-hover text-white rounded-xl text-xs font-bold shadow transition-all active:scale-[0.98] cursor-pointer btn-interactive"
+          onClick={() => setActiveTab('evaluate')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'evaluate'
+              ? 'bg-brand-primary-light/50 text-brand-primary'
+              : 'text-slate-600 hover:bg-slate-50'
+          }`}
         >
-          🏆 Kho Học Liệu Vàng toàn trường
+          🔍 Đánh giá & Khảo sát ngẫu nhiên
         </button>
-      </div>
+        <button
+          onClick={() => {
+            setActiveTab('history');
+            loadEvaluationHistory();
+          }}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'history'
+              ? 'bg-brand-primary-light/50 text-brand-primary'
+              : 'text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          📜 Nhật ký Đánh giá Thi đua
+        </button>
+      </nav>
 
-      {/* MAIN CONTENT */}
-      <main className="flex-grow p-4 sm:p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* CỘT TRÁI (Lg: 5/12): Dashboard Thống kê và Nút rút ngẫu nhiên */}
-        <section className="lg:col-span-5 space-y-6">
-          
-          {/* Card Lấy Mẫu Ngẫu Nhiên */}
-          <div className="p-5 sm:p-6 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-4">
-            <h2 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2.5">
-              🎯 Cơ Chế Chọn Mẫu Ngẫu Nhiên
-            </h2>
-            <p className="text-xs text-slate-500 leading-relaxed font-medium">
-              BGH không duyệt tuần tự. Hệ thống tự động chọn ngẫu nhiên một giáo viên thuộc Khối đã nộp đầy đủ hồ sơ ở Tuần {selectedWeek === 'all' ? currentWeek : selectedWeek} để thanh tra chất lượng.
-            </p>
+      {/* TAB 1: EVALUATION (ĐÁNH GIÁ CHẤT LƯỢNG) */}
+      {activeTab === 'evaluate' && (
+        <>
+          {/* SUB HEADER - WEEK & GRADE FILTER */}
+          <div className="bg-white border-b border-slate-200/80 px-6 py-3 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shadow-sm">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">Chọn Tuần học:</label>
+                <select
+                  value={selectedWeek}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedWeek(val === 'all' ? 'all' : Number(val));
+                    setRandomTeacher(null);
+                    setSaveSuccess(false);
+                  }}
+                  className="bg-white border border-slate-200 text-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-brand-primary cursor-pointer shadow-sm"
+                >
+                  <option value="all">Tất cả các tuần</option>
+                  {Array.from({ length: totalWeeks }, (_, i) => i + 1).map(w => (
+                    <option key={w} value={w}>Tuần {w}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">Chọn Khối khảo sát:</label>
+                <select
+                  value={selectedGrade}
+                  onChange={(e) => {
+                    setSelectedGrade(e.target.value);
+                    setRandomTeacher(null);
+                    setSaveSuccess(false);
+                  }}
+                  className="bg-white border border-slate-200 text-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-brand-primary cursor-pointer shadow-sm"
+                >
+                  <option value="all">Tất cả các khối</option>
+                  <option value="Khối 1">Khối 1</option>
+                  <option value="Khối 2">Khối 2</option>
+                  <option value="Khối 3">Khối 3</option>
+                  <option value="Khối 4">Khối 4</option>
+                  <option value="Khối 5">Khối 5</option>
+                  <option value="Bộ môn đặc thù">Bộ môn đặc thù</option>
+                </select>
+              </div>
+            </div>
 
             <button
-              onClick={handleRandomSampling}
-              disabled={isSampling}
-              className="w-full py-4 bg-gradient-to-r from-brand-primary to-brand-accent hover:opacity-90 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all active:scale-[0.98] shadow shadow-indigo-600/5 cursor-pointer btn-interactive"
+              onClick={() => window.location.href = '/dashboard/library'}
+              className="px-4 py-2 bg-brand-accent hover:bg-brand-accent-hover text-white rounded-xl text-xs font-bold shadow transition-all active:scale-[0.98] cursor-pointer btn-interactive"
             >
-              {isSampling ? '🔄 Đang bốc thăm ngẫu nhiên...' : '🎰 Chọn Ngẫu Nhiên Giáo Viên'}
+              🏆 Kho Học Liệu Vàng toàn trường
             </button>
           </div>
 
-          {/* Bảng Danh Sách Giáo Viên Trong Khối */}
-          <div className="p-5 sm:p-6 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-4">
-            <h2 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2.5">
-              📋 Danh sách Giáo viên {selectedGrade === 'all' ? 'Tất cả các khối' : selectedGrade}
-            </h2>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-              {filteredTeachers.map(t => {
-                const isSelected = randomTeacher?.id === t.id;
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => handleSelectTeacherManual(t)}
-                    className={`flex items-center justify-between p-3 rounded-xl border transition-all duration-200 cursor-pointer active:scale-[0.99] group ${
-                      isSelected
-                        ? 'border-brand-primary bg-brand-primary-light/10 shadow-sm ring-1 ring-brand-primary'
-                        : 'border-slate-300 bg-slate-50/50 hover:bg-white hover:border-brand-primary/45 hover:shadow-sm'
-                    }`}
-                  >
-                    <div>
-                      <div className={`font-bold transition-colors ${isSelected ? 'text-brand-primary' : 'text-slate-800 group-hover:text-brand-primary'}`}>{t.fullName}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">{t.email}</div>
-                    </div>
-                    {isSelected ? (
-                      <span className="px-2.5 py-0.5 bg-brand-primary text-white rounded-full font-black text-[9px] uppercase tracking-wider animate-pulse">
-                        👉 Đang chọn
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-full font-bold text-[9px] uppercase tracking-wider group-hover:bg-brand-primary-light group-hover:text-brand-primary group-hover:border-brand-primary-light transition-colors">
-                        Chọn
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-        </section>
-
-        {/* CỘT PHẢI (Lg: 7/12): Form Đánh Giá Chi Tiết Theo Tiêu Chí */}
-        <section className="lg:col-span-7">
-          
-          {!randomTeacher ? (
-            <div className="h-full min-h-[320px] border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center p-8 text-center bg-white shadow-sm space-y-4">
-              <div className="text-6xl animate-pulse">🎰</div>
-              <h3 className="text-slate-800 font-black text-xs sm:text-sm uppercase">Chưa chọn mẫu giáo viên khảo sát</h3>
-              <p className="text-slate-500 text-xs max-w-sm font-medium">
-                Vui lòng click vào nút **"🎰 Chọn Ngẫu Nhiên Giáo Viên"** ở cột bên trái để chọn ra một hồ sơ ngẫu nhiên và tiến hành đánh giá chuyên môn.
-              </p>
-            </div>
-          ) : (
-            <div className="border border-slate-200/80 bg-white rounded-2xl p-5 sm:p-6 shadow-sm space-y-6 animate-fade-in">
+          {/* MAIN CONTENT */}
+          <main className="flex-grow p-4 sm:p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* CỘT TRÁI (Lg: 5/12): Dashboard Thống kê và Nút rút ngẫu nhiên */}
+            <section className="lg:col-span-5 space-y-6">
               
-              {/* Header profile giáo viên được chọn */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                <div className="space-y-1">
-                  <span className="text-[9px] font-black text-brand-primary bg-brand-primary-light/40 border border-brand-primary-light px-2 py-0.5 rounded-full uppercase">
-                    Hồ sơ được chọn
-                  </span>
-                  <h3 className="text-lg font-black text-slate-800">{randomTeacher.fullName}</h3>
-                  <div className="text-xs text-slate-500 font-medium">Khối dạy: {randomTeacher.grade} | Email: {randomTeacher.email}</div>
-                </div>
+              {/* Card Lấy Mẫu Ngẫu Nhiên */}
+              <div className="p-5 sm:p-6 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-4">
+                <h2 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2.5">
+                  🎯 Cơ Chế Chọn Mẫu Ngẫu Nhiên
+                </h2>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                  BGH không duyệt tuần tự. Hệ thống tự động chọn ngẫu nhiên một giáo viên thuộc Khối đã nộp đầy đủ hồ sơ ở Tuần {selectedWeek === 'all' ? currentWeek : selectedWeek} để thanh tra chất lượng.
+                </p>
 
-                <div className="text-left sm:text-right">
-                  <div className="text-[10px] text-slate-400 font-bold uppercase">Tuần thanh tra</div>
-                  <div className="text-base font-black text-brand-primary">Tuần học {selectedWeek === 'all' ? `${currentWeek} (Hiện tại)` : selectedWeek}</div>
+                <button
+                  onClick={handleRandomSampling}
+                  disabled={isSampling}
+                  className="w-full py-4 bg-gradient-to-r from-brand-primary to-brand-accent hover:opacity-90 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all active:scale-[0.98] shadow shadow-indigo-600/5 cursor-pointer btn-interactive"
+                >
+                  {isSampling ? '🔄 Đang bốc thăm ngẫu nhiên...' : '🎰 Chọn Ngẫu Nhiên Giáo Viên'}
+                </button>
+              </div>
+
+              {/* Bảng Danh Sách Giáo Viên Trong Khối */}
+              <div className="p-5 sm:p-6 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-4">
+                <h2 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2.5">
+                  📋 Danh sách Giáo viên {selectedGrade === 'all' ? 'Tất cả các khối' : selectedGrade}
+                </h2>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {filteredTeachers.map(t => {
+                    const isSelected = randomTeacher?.id === t.id;
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => handleSelectTeacherManual(t)}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all duration-200 cursor-pointer active:scale-[0.99] group ${
+                          isSelected
+                            ? 'border-brand-primary bg-brand-primary-light/10 shadow-sm ring-1 ring-brand-primary'
+                            : 'border-slate-300 bg-slate-50/50 hover:bg-white hover:border-brand-primary/45 hover:shadow-sm'
+                        }`}
+                      >
+                        <div>
+                          <div className={`font-bold transition-colors ${isSelected ? 'text-brand-primary' : 'text-slate-800 group-hover:text-brand-primary'}`}>{t.fullName}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">{t.email}</div>
+                        </div>
+                        {isSelected ? (
+                          <span className="px-2.5 py-0.5 bg-brand-primary text-white rounded-full font-black text-[9px] uppercase tracking-wider animate-pulse">
+                            👉 Đang chọn
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-full font-bold text-[9px] uppercase tracking-wider group-hover:bg-brand-primary-light group-hover:text-brand-primary group-hover:border-brand-primary-light transition-colors">
+                            Chọn
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Danh sách các file nộp thật quét từ Drive */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider">
-                  Học liệu thật trên Drive của giáo viên
-                </h4>
-                {loadingFiles ? (
-                  <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 text-xs text-slate-500 text-center animate-pulse">
-                    🔄 Đang quét trực tiếp Google Drive của giáo viên...
+            </section>
+
+            {/* CỘT PHẢI (Lg: 7/12): Form Đánh Giá Chi Tiết Theo Tiêu Chí */}
+            <section className="lg:col-span-7">
+              
+              {!randomTeacher ? (
+                <div className="h-full min-h-[320px] border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center p-8 text-center bg-white shadow-sm space-y-4">
+                  <div className="text-6xl animate-pulse">🎰</div>
+                  <h3 className="text-slate-800 font-black text-xs sm:text-sm uppercase">Chưa chọn mẫu giáo viên khảo sát</h3>
+                  <p className="text-slate-500 text-xs max-w-sm font-medium">
+                    Vui lòng click vào nút **"🎰 Chọn Ngẫu Nhiên Giáo Viên"** ở cột bên trái hoặc nhấp chọn một giáo viên trực tiếp từ danh sách để tiến hành đánh giá chuyên môn.
+                  </p>
+                </div>
+              ) : (
+                <div className="border border-slate-200/80 bg-white rounded-2xl p-5 sm:p-6 shadow-sm space-y-6 animate-fade-in">
+                  
+                  {/* Header profile giáo viên được chọn */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-black text-brand-primary bg-brand-primary-light/40 border border-brand-primary-light px-2 py-0.5 rounded-full uppercase">
+                        Hồ sơ được chọn
+                      </span>
+                      <h3 className="font-extrabold text-slate-800 text-base leading-tight mt-1">{randomTeacher.fullName}</h3>
+                      <p className="text-[10px] text-slate-500 font-medium">Email: {randomTeacher.email} | Khối: {randomTeacher.grade}</p>
+                    </div>
+                    
+                    <div className="text-right">
+                      <div className="text-[10px] text-slate-400 font-bold uppercase">Tuần khảo sát</div>
+                      <div className="text-xl font-black text-brand-primary">Tuần {selectedWeek === 'all' ? currentWeek : selectedWeek}</div>
+                    </div>
                   </div>
-                ) : (
+
+                  {/* DANH SÁCH FILE NỘP ĐỂ ĐỌC TRỰC TUYẾN */}
                   <div className="space-y-3">
-                    {/* Banner thông báo trạng thái nộp bài của Giáo viên */}
-                    {(() => {
-                      const khbdCount = scannedFiles.filter(f => f.type === FILE_TYPES.KHBD).length;
-                      const dctdCount = scannedFiles.filter(f => f.type === FILE_TYPES.DCTD).length;
-                      const khgdCount = scannedFiles.filter(f => f.type === FILE_TYPES.KHGD).length;
+                    <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                      📄 Học liệu quét được trên Drive của Giáo viên:
+                    </h4>
 
-                      if (scannedFiles.length === 0) {
-                        return (
-                          <div className="p-4 rounded-2xl border border-red-205 bg-red-50 text-red-700 text-xs font-bold flex items-center gap-2.5 shadow-sm animate-pulse">
-                            <span className="text-base">🚨</span>
-                            <div>
-                              <div className="font-black uppercase">Giáo viên chưa nộp học liệu nào!</div>
-                              <div className="text-[10px] text-red-500 font-medium mt-0.5">Không tìm thấy bất kỳ file nào trong thư mục tuần trên Google Drive.</div>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      // Cảnh báo nộp thiếu file (Quy chuẩn tối thiểu: 2 file KHBD, 1 file DCTD)
-                      const isMissing = khbdCount < 2 || dctdCount < 1;
-                      if (isMissing) {
-                        return (
-                          <div className="p-4 rounded-2xl border border-orange-200 bg-orange-50 text-orange-850 text-xs font-bold flex items-center gap-2.5 shadow-sm">
-                            <span className="text-base">⚠️</span>
-                            <div>
-                              <div className="font-black uppercase">Cảnh báo: Giáo viên nộp thiếu học liệu!</div>
-                              <div className="text-[10px] text-orange-600 font-medium mt-0.5">
-                                Đã nộp: <strong className="text-orange-800">{khbdCount}/2 KHBD</strong> (Giáo án) và <strong className="text-orange-800">{dctdCount}/1 DCTD</strong> (Điều chỉnh).
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="p-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/50 text-emerald-850 text-xs font-bold flex items-center gap-2.5 shadow-sm">
-                          <span className="text-base">✓</span>
-                          <div>
-                            <div className="font-black uppercase text-emerald-800">Đã nộp đủ học liệu quy định</div>
-                            <div className="text-[10px] text-emerald-600 font-medium mt-0.5">Đồng bộ đầy đủ: {khbdCount}/2 KHBD, {dctdCount}/1 DCTD, {khgdCount} KHGD.</div>
-                          </div>
+                    {loadingFiles ? (
+                      <div className="text-center py-6 text-slate-400 text-xs font-medium">
+                        <span className="animate-spin inline-block mr-1">🔄</span> Đang tìm kiếm tệp tin từ Drive trường...
+                      </div>
+                    ) : scannedFiles.length === 0 ? (
+                      <div className="p-5 text-center bg-rose-50/40 border border-rose-100 rounded-xl space-y-1">
+                        <div className="text-xs font-bold text-rose-600 flex items-center justify-center gap-1.5">
+                          🚨 Giáo viên chưa nộp học liệu nào!
                         </div>
-                      );
-                    })()}
-
-                    {/* Danh sách các file thật nếu có */}
-                    {scannedFiles.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                        {scannedFiles.map((file, i) => (
-                          <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-slate-300 bg-slate-50 text-xs hover:border-brand-primary/30 transition-all">
-                            <a
-                              href={file.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-brand-primary hover:underline font-bold truncate max-w-[200px]"
-                            >
-                              📄 {file.name}
-                            </a>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-[9px] font-bold text-brand-primary bg-brand-primary-light/40 border border-brand-primary-light px-1.5 py-0.5 rounded uppercase shrink-0">
-                                {file.type}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleEliteFile(file)}
-                                className={`px-2 py-1 rounded text-[9px] font-black border transition-all cursor-pointer flex items-center gap-1 ${
-                                  selectedEliteFiles.some(f => f.name === file.name)
-                                    ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
-                                    : 'bg-white text-amber-600 border-amber-200 hover:bg-amber-50'
-                                }`}
-                              >
-                                🏆 {selectedEliteFiles.some(f => f.name === file.name) ? 'Học liệu vàng' : 'Vinh danh'}
-                              </button>
-                            </div>
+                        <p className="text-[10px] text-slate-450">Thư mục Drive của giáo viên này tuần hiện tại đang trống hoàn toàn.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {/* Banner Cảnh báo Nộp thiếu học liệu nếu thiếu file */}
+                        {scannedFiles.length < 4 && (
+                          <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl text-[10px] text-orange-650 font-bold flex items-center gap-1.5 animate-pulse">
+                            ⚠️ Cảnh báo: Giáo viên nộp thiếu học liệu! (Chỉ quét thấy {scannedFiles.length} tệp tin, tối thiểu cần 4 tệp).
                           </div>
-                        ))}
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
+                          {scannedFiles.map((file, idx) => {
+                            const isVinhDanh = selectedEliteFiles.some(f => f.name === file.name);
+                            return (
+                              <div key={idx} className="flex justify-between items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs hover:border-slate-350 hover:bg-white transition-all shadow-sm">
+                                <div className="truncate flex-grow font-semibold">
+                                  <a
+                                    href={file.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-brand-primary hover:underline truncate block"
+                                    title={file.name}
+                                  >
+                                    📄 {file.name}
+                                  </a>
+                                  <span className="text-[8px] text-slate-400 block mt-0.5 uppercase tracking-wider">{file.type} • {file.uploadedAt}</span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleEliteFile(file)}
+                                  className={`p-1.5 rounded-lg border text-[10px] font-bold cursor-pointer transition-all shrink-0 shadow-sm active:scale-90 ${
+                                    isVinhDanh
+                                      ? 'bg-amber-500 border-amber-600 text-white font-black'
+                                      : 'bg-white border-slate-200 text-slate-500 hover:bg-amber-50 hover:text-amber-650'
+                                  }`}
+                                  title={isVinhDanh ? "Bỏ vinh danh" : "Vinh danh Học liệu vàng"}
+                                >
+                                  🏆 {isVinhDanh ? 'Vinh danh!' : 'Vinh danh'}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
-                )}
-              </div>
 
-              {/* Form đánh giá các tiêu chí */}
-              <form onSubmit={handleSaveEvaluation} className="space-y-6">
-                
-                <div className="space-y-3">
-                  <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider">
-                    Đánh giá chi tiết theo 6 tiêu chí quy định
-                  </h4>
-                  
-                  <div className="space-y-2.5">
-                    {CRITERIA.map(item => (
-                      <div key={item.key} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3 rounded-xl border border-slate-300 bg-slate-50/50 text-xs">
-                        <span className="font-bold text-slate-700 max-w-md leading-relaxed">{item.label}</span>
-                        <div className="flex gap-1 shrink-0">
+                  {/* FORM ĐÁNH GIÁ CHẤT LƯỢNG */}
+                  <form onSubmit={handleSaveEvaluation} className="space-y-4 pt-4 border-t border-slate-200/80">
+                    
+                    {/* Các tiêu chí đánh giá giáo án */}
+                    <div className="space-y-3.5">
+                      <h4 className="text-xs font-black text-slate-550 uppercase tracking-wider">
+                        📊 Đánh giá chất lượng giáo án theo tiêu chí chuyên môn:
+                      </h4>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        {criteriaDetails.map(c => {
+                          const currentVal = criteriaRatings[c.key] || EVALUATION_LEVELS.DAT;
+                          return (
+                            <div key={c.key} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2 flex flex-col justify-between">
+                              <label className="text-[10px] font-bold text-slate-650 leading-normal block">
+                                {c.label}
+                              </label>
+                              <div className="flex gap-1">
+                                {Object.values(EVALUATION_LEVELS).map(lvl => (
+                                  <button
+                                    key={lvl}
+                                    type="button"
+                                    onClick={() => setCriteriaRatings(prev => ({ ...prev, [c.key]: lvl }))}
+                                    className={`flex-grow py-1 rounded-lg text-[9px] font-black border transition-all cursor-pointer active:scale-95 ${
+                                      currentVal === lvl
+                                        ? EVALUATION_COLORS[lvl as keyof typeof EVALUATION_COLORS]
+                                        : 'border-slate-200 bg-white text-slate-450 hover:border-slate-350'
+                                    }`}
+                                  >
+                                    {lvl}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start pt-3 border-t border-slate-100">
+                      
+                      {/* Xếp loại chất lượng chung */}
+                      <div className="space-y-2">
+                        <label className="block text-xs font-black text-slate-500 uppercase">
+                          Xếp loại chất lượng giáo án
+                        </label>
+                        <div className="flex gap-1">
                           {Object.values(EVALUATION_LEVELS).map(lvl => (
                             <button
                               key={lvl}
                               type="button"
-                              onClick={() => setCriteriaRatings(prev => ({ ...prev, [item.key]: lvl }))}
-                              className={`px-2.5 py-1 rounded text-[10px] font-bold border transition-all cursor-pointer btn-interactive ${
-                                criteriaRatings[item.key] === lvl
+                              onClick={() => setBghRating(lvl)}
+                              className={`flex-grow py-2 rounded-xl text-xs font-black border transition-all cursor-pointer btn-interactive ${
+                                bghRating === lvl
                                   ? EVALUATION_COLORS[lvl as keyof typeof EVALUATION_COLORS]
                                   : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                               }`}
@@ -670,95 +797,222 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                           ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Xếp Loại Tổng Hợp */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-300 pt-5">
-                  <div className="space-y-2">
-                    <label className="block text-xs font-black text-slate-500 uppercase">
-                      Xếp loại chất lượng giáo án
-                    </label>
-                    <div className="flex gap-1">
-                      {Object.values(EVALUATION_LEVELS).map(lvl => (
-                        <button
-                          key={lvl}
-                          type="button"
-                          onClick={() => setBghRating(lvl)}
-                          className={`flex-grow py-2 rounded-xl text-xs font-black border transition-all cursor-pointer btn-interactive ${
-                            bghRating === lvl
-                              ? EVALUATION_COLORS[lvl as keyof typeof EVALUATION_COLORS]
-                              : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                          }`}
-                        >
-                          {lvl}
-                        </button>
-                      ))}
+                       {/* Vinh danh học liệu vàng (Tích xanh) */}
+                       <div className="p-4 rounded-xl border border-slate-300 bg-slate-50 flex items-center justify-between">
+                         <div>
+                           <h5 className="text-xs font-bold text-slate-800">Bài học mẫu mực</h5>
+                           <p className="text-[10px] text-slate-400 mt-0.5">
+                             {selectedEliteFiles.length > 0
+                               ? `Đang vinh danh: ${selectedEliteFiles.length} tệp tin đã chọn`
+                               : 'Tích chọn các nút 🏆 Vinh danh ở danh sách tệp bên trên'}
+                           </p>
+                         </div>
+                         <input
+                           type="checkbox"
+                           checked={isElite}
+                           onChange={e => {
+                             setIsElite(e.target.checked);
+                             if (!e.target.checked) {
+                               setSelectedEliteFiles([]);
+                             } else if (selectedEliteFiles.length === 0 && scannedFiles.length > 0) {
+                               const firstKhbd = scannedFiles.find(f => f.type === FILE_TYPES.KHBD);
+                               if (firstKhbd) setSelectedEliteFiles([firstKhbd]);
+                             }
+                           }}
+                           className="h-5 w-5 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
+                         />
+                       </div>
                     </div>
-                  </div>
 
-                   {/* Vinh danh học liệu vàng (Tích xanh) */}
-                   <div className="p-4 rounded-xl border border-slate-300 bg-slate-50 flex items-center justify-between">
-                     <div>
-                       <h5 className="text-xs font-bold text-slate-800">Bài học mẫu mực</h5>
-                       <p className="text-[10px] text-slate-400 mt-0.5">
-                         {selectedEliteFiles.length > 0
-                           ? `Đang vinh danh: ${selectedEliteFiles.length} tệp tin đã chọn`
-                           : 'Tích chọn các nút 🏆 Vinh danh ở danh sách tệp bên trên'}
-                       </p>
-                     </div>
-                     <input
-                       type="checkbox"
-                       checked={isElite}
-                       onChange={e => {
-                         setIsElite(e.target.checked);
-                         if (!e.target.checked) {
-                           setSelectedEliteFiles([]);
-                         } else if (selectedEliteFiles.length === 0 && scannedFiles.length > 0) {
-                           // Tự động tìm file KHBD đầu tiên làm mặc định nếu Khầy tick mà chưa chọn ở trên
-                           const firstKhbd = scannedFiles.find(f => f.type === FILE_TYPES.KHBD);
-                           if (firstKhbd) setSelectedEliteFiles([firstKhbd]);
-                         }
-                       }}
-                       className="h-5 w-5 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
-                     />
-                   </div>
+                    {/* Ý kiến nhận xét / Đóng góp ý kiến */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-black text-slate-500 uppercase">
+                        Góp ý / Nhận xét của Ban Giám Hiệu gửi riêng
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={bghFeedback}
+                        onChange={e => setBghFeedback(e.target.value)}
+                        placeholder="Nhập ghi chú nhận xét chi tiết (không bắt buộc, có thể để trống)..."
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all shadow-sm"
+                      />
+                    </div>
+
+                    {/* Nút lưu đánh giá */}
+                    <div className="pt-4 border-t border-slate-300 flex justify-end gap-3">
+                      <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="px-6 py-3 bg-gradient-to-r from-brand-primary to-brand-accent hover:opacity-90 disabled:opacity-50 text-white rounded-xl text-xs font-black cursor-pointer transition-all active:scale-[0.98] shadow shadow-indigo-600/5 btn-interactive"
+                      >
+                        {isSaving ? 'Đang lưu đánh giá...' : 'Lưu kết quả đánh giá'}
+                      </button>
+                    </div>
+
+                  </form>
+
                 </div>
+              )}
 
-                {/* Ý kiến nhận xét / Đóng góp ý kiến */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-black text-slate-500 uppercase">
-                    Góp ý / Nhận xét của Ban Giám Hiệu gửi riêng
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={bghFeedback}
-                    onChange={e => setBghFeedback(e.target.value)}
-                    placeholder="Nhập ghi chú nhận xét chi tiết (ví dụ: cần tăng tính sáng tạo ở hoạt động nhóm, cấu trúc bài dạy chuẩn chỉ...)"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all shadow-sm"
-                  />
-                </div>
+            </section>
 
-                {/* Nút lưu đánh giá */}
-                <div className="pt-4 border-t border-slate-300 flex justify-end gap-3">
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="px-6 py-3 bg-gradient-to-r from-brand-primary to-brand-accent hover:opacity-90 disabled:opacity-50 text-white rounded-xl text-xs font-black cursor-pointer transition-all active:scale-[0.98] shadow shadow-indigo-600/5 btn-interactive"
-                  >
-                    {isSaving ? 'Đang lưu đánh giá...' : 'Lưu kết quả đánh giá'}
-                  </button>
-                </div>
+          </main>
+        </>
+      )}
 
-              </form>
+      {/* TAB 2: HISTORY (NHẬT KÝ ĐÁNH GIÁ THI ĐUA) */}
+      {activeTab === 'history' && (
+        <main className="flex-grow p-6 max-w-6xl w-full mx-auto space-y-6">
+          
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6 shadow-sm">
+            
+            {/* Header tab history */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div className="space-y-1">
+                <h2 className="text-base font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  📜 Nhật Ký Đánh Giá Thi Đua (Ban Giám Hiệu)
+                </h2>
+                <p className="text-[10px] text-slate-450">
+                  Lịch sử ghi nhận toàn bộ kết quả thanh tra chất lượng giáo án và nhận xét thi đua sư phạm đã diễn ra.
+                </p>
+              </div>
 
+              <div className="flex gap-2 items-center flex-wrap">
+                {/* Search input */}
+                <input
+                  type="text"
+                  placeholder="Tìm tên giáo viên, nhận xét..."
+                  value={historySearchTerm}
+                  onChange={e => setHistorySearchTerm(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-450 focus:outline-none focus:border-brand-primary focus:bg-white transition-colors w-full sm:w-48 shadow-sm"
+                />
+
+                {/* Grade filter */}
+                <select
+                  value={historyGradeFilter}
+                  onChange={e => setHistoryGradeFilter(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-bold text-slate-700 cursor-pointer focus:outline-none focus:border-brand-primary shadow-sm"
+                >
+                  <option value="all">Tất cả các khối</option>
+                  <option value="Khối 1">Khối 1</option>
+                  <option value="Khối 2">Khối 2</option>
+                  <option value="Khối 3">Khối 3</option>
+                  <option value="Khối 4">Khối 4</option>
+                  <option value="Khối 5">Khối 5</option>
+                  <option value="Bộ môn đặc thù">Bộ môn đặc thù</option>
+                </select>
+
+                {/* Rating filter */}
+                <select
+                  value={historyRatingFilter}
+                  onChange={e => setHistoryRatingFilter(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-bold text-slate-700 cursor-pointer focus:outline-none focus:border-brand-primary shadow-sm"
+                >
+                  <option value="all">Tất cả mức đánh giá</option>
+                  {Object.values(EVALUATION_LEVELS).map(lvl => (
+                    <option key={lvl} value={lvl}>{lvl}</option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={loadEvaluationHistory}
+                  disabled={loadingHistory}
+                  className="p-2 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg active:scale-95 transition-all shadow-sm cursor-pointer"
+                  title="Tải lại lịch sử"
+                >
+                  🔄
+                </button>
+              </div>
             </div>
-          )}
 
-        </section>
+            {/* History Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                    <th className="p-4">Tuần</th>
+                    <th className="p-4">Giáo viên / Khối</th>
+                    <th className="p-4">Đánh giá thi đua</th>
+                    <th className="p-4">Ý kiến nhận xét chi tiết</th>
+                    <th className="p-4">Học liệu mẫu mực</th>
+                    <th className="p-4 text-right">Ngày đánh giá</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {loadingHistory ? (
+                    <tr>
+                      <td colSpan={6} className="p-12 text-center text-slate-400 font-bold">
+                        <span className="inline-block animate-spin mr-2">🔄</span> Đang tải nhật ký đánh giá chất lượng...
+                      </td>
+                    </tr>
+                  ) : filteredHistoryList.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-12 text-center text-slate-500 font-medium bg-slate-50/50">
+                        📭 Không có dữ liệu lịch sử đánh giá nào khớp bộ lọc.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredHistoryList.map((item, idx) => {
+                      const formattedDate = new Date(item.updatedAt).toLocaleDateString('vi-VN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
 
-      </main>
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 font-black text-brand-primary text-sm">Tuần {item.weekNumber}</td>
+                          <td className="p-4">
+                            <div className="font-bold text-slate-800">{item.teacherName}</div>
+                            <div className="text-[10px] text-slate-400 font-bold mt-0.5 uppercase">{item.teacherGrade}</div>
+                          </td>
+                          <td className="p-4">
+                            <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${EVALUATION_COLORS[item.rating as keyof typeof EVALUATION_COLORS]}`}>
+                              {item.rating}
+                            </span>
+                          </td>
+                          <td className="p-4 max-w-xs truncate font-medium text-slate-650" title={item.feedback}>
+                            {item.feedback || <span className="text-slate-400 italic">Không có nhận xét chi tiết</span>}
+                          </td>
+                          <td className="p-4">
+                            {item.eliteFileName ? (
+                              <div className="space-y-1">
+                                {item.eliteFileName.split(' | ').map((name, fIdx) => {
+                                  const urls = item.eliteFileUrl?.split(' | ') || [];
+                                  const url = urls[fIdx] || '#';
+                                  return (
+                                    <a
+                                      key={fIdx}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-amber-600 font-bold hover:underline block truncate max-w-[150px] bg-amber-50/60 border border-amber-200 px-2 py-0.5 rounded text-[9px]"
+                                      title={name}
+                                    >
+                                      🏆 {name}
+                                    </a>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-right text-[10px] text-slate-450 font-bold">{formattedDate}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </main>
+      )}
 
     </div>
   );
