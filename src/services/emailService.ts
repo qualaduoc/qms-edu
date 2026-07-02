@@ -4,11 +4,11 @@ import nodemailer from 'nodemailer';
 const getTransporter = () => {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = parseInt(process.env.SMTP_PORT || '587');
-  const user = process.env.SMTP_USER; // Tài khoản Gmail của trường
-  const pass = process.env.SMTP_PASS; // Mật khẩu ứng dụng (App Password) của Gmail
+  const user = process.env.SMTP_USER || process.env.GMAIL_USER; // Hỗ trợ cả SMTP_USER và GMAIL_USER
+  const pass = process.env.SMTP_PASS || process.env.GMAIL_PASS; // Hỗ trợ cả SMTP_PASS và GMAIL_PASS
 
   if (!user || !pass) {
-    throw new Error('SMTP credentials are not configured in environment variables.');
+    throw new Error('SMTP credentials are not configured in environment variables. Vui lòng cấu hình SMTP_USER/GMAIL_USER và SMTP_PASS/GMAIL_PASS trên Vercel.');
   }
 
   return nodemailer.createTransport({
@@ -33,7 +33,7 @@ interface SendEmailParams {
  */
 export async function sendEmail({ to, subject, html }: SendEmailParams): Promise<void> {
   const transporter = getTransporter();
-  const senderEmail = process.env.SMTP_USER;
+  const senderEmail = process.env.SMTP_USER || process.env.GMAIL_USER;
 
   try {
     await transporter.sendMail({
