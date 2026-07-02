@@ -125,7 +125,7 @@ export default function Home() {
               Đăng nhập hệ thống
             </h2>
             <p className="mt-2 text-sm text-slate-500 font-medium">
-              Sử dụng tài khoản Google được nhà trường cung cấp để truy cập
+              Sử dụng Gmail cá nhân của thầy/cô để đăng nhập
             </p>
           </div>
  
