@@ -39,15 +39,45 @@ export default function DashboardPage() {
           return;
         }
 
-        // Truy vấn thông tin profile của giáo viên từ database
-        const { data: profile, error } = await supabase
+        // 1. Thử truy vấn thông tin profile theo ID trước
+        let { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Lỗi tải hồ sơ:', error);
+        if (error) {
+          console.error('Lỗi tải hồ sơ theo ID:', error);
+        }
+
+        // 2. Nếu không tìm thấy profile theo ID, thử truy vấn theo Email (phòng trường hợp Admin vừa đổi Email đăng nhập của họ)
+        if (!profile && session.user.email) {
+          const { data: emailProfile, error: emailErr } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('email', session.user.email.trim().toLowerCase())
+            .maybeSingle();
+
+          if (emailErr) {
+            console.error('Lỗi tải hồ sơ theo email:', emailErr);
+          }
+
+          if (emailProfile) {
+            // Liên kết Profile cũ với Auth ID mới!
+            const { data: updatedProfile, error: updateErr } = await supabase
+              .from('profiles')
+              .update({ id: session.user.id })
+              .eq('email', session.user.email.trim().toLowerCase())
+              .select()
+              .single();
+
+            if (!updateErr && updatedProfile) {
+              profile = updatedProfile;
+              console.log(`[Auth Auto-Link] Đã liên kết profile cũ của ${profile.full_name} với Auth ID mới ${session.user.id}.`);
+            } else {
+              console.error('Lỗi tự động liên kết ID mới cho profile:', updateErr);
+            }
+          }
         }
 
         if (profile) {

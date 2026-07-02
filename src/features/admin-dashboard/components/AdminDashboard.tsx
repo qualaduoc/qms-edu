@@ -70,6 +70,10 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // States dành cho chức năng đổi email đăng nhập của Admin
+  const [editingEmailProfileId, setEditingEmailProfileId] = useState<string | null>(null);
+  const [newEmailValue, setNewEmailValue] = useState('');
+
   // Load danh sách thành viên và cấu hình
   const loadData = async () => {
     setLoading(true);
@@ -165,6 +169,50 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
     }
   };
 
+  // Cập nhật Gmail đăng nhập của 1 thành viên (Phòng trường hợp quên/mất tài khoản Google)
+  const handleUpdateEmail = async (userId: string, newEmail: string) => {
+    if (!newEmail || !newEmail.includes('@')) {
+      showToast('Vui lòng nhập địa chỉ Gmail hợp lệ!', 'warning');
+      return;
+    }
+
+    const targetEmail = newEmail.trim().toLowerCase();
+    setActionLoading(userId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const token = session.access_token;
+
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId,
+          email: targetEmail,
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        setProfiles(prev =>
+          prev.map(p => (p.id === userId ? { ...p, email: targetEmail } : p))
+        );
+        setEditingEmailProfileId(null);
+        showToast('Đã đổi email đăng nhập thành công cho thành viên!', 'success');
+      } else {
+        showToast(`Lỗi đổi email: ${result.error}`, 'error');
+      }
+    } catch (err: any) {
+      showToast(`Lỗi kết nối mạng: ${err.message}`, 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Lưu cấu hình hệ thống
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,10 +230,9 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          id: config.id,
           schoolYear: config.school_year,
           startDate: config.start_date,
-          googleDriveRootFolderId: config.google_drive_root_folder_id,
+          googleRootFolderId: config.google_drive_root_folder_id,
           khbdDeadlineDay: config.khbd_deadline_day,
           khbdDeadlineTime: config.khbd_deadline_time,
           khbdFrequency: config.khbd_frequency,
@@ -201,47 +248,34 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
 
       const result = await response.json();
       if (response.ok) {
-        setConfig(prev => ({
-          ...prev,
-          id: result.data.id,
-        }));
         showToast('Đã lưu cấu hình hệ thống thành công!', 'success');
+        loadData();
       } else {
-        showToast(`Lỗi lưu cấu hình: ${result.error}`, 'error');
+        showToast(`Lỗi: ${result.error}`, 'error');
       }
     } catch (err: any) {
-      showToast(`Lỗi kết nối mạng: ${err.message}`, 'error');
+      showToast(`Lỗi kết nối: ${err.message}`, 'error');
     } finally {
       setSavingConfig(false);
     }
   };
 
-  // Tính toán số liệu thống kê nhanh
-  const stats = {
-    total: profiles.length,
-    pending: profiles.filter(p => p.status === 'pending').length,
-    approved: profiles.filter(p => p.status === 'approved').length,
-    teachers: profiles.filter(p => p.role === 'teacher').length,
-    leads: profiles.filter(p => p.role === 'lead').length,
-    bgh: profiles.filter(p => p.role === 'bgh').length,
-  };
-
-  // Lọc danh sách thành viên
+  // Lọc danh sách thành viên theo ô Search và bộ lọc
   const filteredProfiles = profiles.filter(p => {
-    const matchesSearch =
-      p.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const nameMatch = (p.full_name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const emailMatch = (p.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch = nameMatch || emailMatch;
 
-    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-    const matchesRole = roleFilter === 'all' || p.role === roleFilter;
+    const matchRole = roleFilter === 'all' ? true : p.role === roleFilter;
+    const matchStatus = statusFilter === 'all' ? true : p.status === statusFilter;
 
-    return matchesSearch && matchesStatus && matchesRole;
+    return matchSearch && matchRole && matchStatus;
   });
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 text-slate-800 font-sans">
       
-      {/* HEADER: OLM Style - Brand Primary Background */}
+      {/* HEADER - Brand OLM Style */}
       <header className="relative z-10 bg-brand-primary px-6 py-4 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white p-0.5 shadow">
@@ -250,13 +284,12 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             </div>
           </div>
           <div>
-            <div className="text-sm font-black text-white leading-none">QMS-EDU ADMIN</div>
-            <div className="text-[10px] text-indigo-200 font-medium">Bảng điều khiển quản trị hệ thống</div>
+            <div className="text-sm font-black text-white leading-none">QMS-EDU</div>
+            <div className="text-[10px] text-indigo-200 uppercase tracking-widest font-bold mt-0.5">Quản trị hệ thống</div>
           </div>
         </div>
 
-        {/* User Info & Actions */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           <div className="hidden md:block text-right">
             <div className="text-xs font-bold text-white">{user.fullName}</div>
             <div className="text-[10px] text-white font-bold bg-brand-accent px-2.5 py-0.5 rounded-full inline-block mt-0.5 shadow-sm">
@@ -281,81 +314,56 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
         </div>
       </header>
 
-      {/* SUB HEADER - TAB SELECTOR: White background, bottom border */}
-      <div className="bg-white border-b border-slate-200/80 px-6 py-1 flex gap-4 shadow-sm">
+      {/* TABS NAVIGATION BAR */}
+      <nav className="bg-white border-b border-slate-200 px-6 py-2.5 flex gap-2 shadow-sm">
         <button
           onClick={() => setActiveTab('members')}
-          className={`px-4 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'members'
-              ? 'border-brand-accent text-brand-accent font-bold'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'bg-brand-primary-light/50 text-brand-primary'
+              : 'text-slate-600 hover:bg-slate-50'
           }`}
         >
           👥 Quản lý Thành viên
         </button>
         <button
           onClick={() => setActiveTab('config')}
-          className={`px-4 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'config'
-              ? 'border-brand-accent text-brand-accent font-bold'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'bg-brand-primary-light/50 text-brand-primary'
+              : 'text-slate-600 hover:bg-slate-50'
           }`}
         >
           ⚙️ Cấu hình Hệ thống
         </button>
-      </div>
+      </nav>
 
-      {/* MAIN CONTENT */}
-      <main className="flex-grow p-4 sm:p-6 space-y-6 max-w-7xl w-full mx-auto">
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-grow p-6 lg:p-10 max-w-6xl mx-auto w-full">
         
-        {/* STATS OVERVIEW CARDS: OLM Light style */}
-        {activeTab === 'members' && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl border border-slate-200/60 bg-white shadow-sm">
-              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tổng thành viên</div>
-              <div className="text-2xl font-black mt-1 text-slate-900">{stats.total}</div>
-              <div className="text-[10px] text-slate-500 mt-0.5">Tài khoản Google kết nối</div>
-            </div>
-            <div className="p-4 rounded-xl border border-brand-accent/30 bg-brand-accent-light/10 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 right-0 h-10 w-10 bg-brand-accent/5 rounded-full blur-md"></div>
-              <div className="text-[10px] font-bold text-brand-accent uppercase tracking-wider">Chờ phê duyệt</div>
-              <div className="text-2xl font-black mt-1 text-brand-accent">{stats.pending}</div>
-              <div className="text-[10px] text-brand-accent mt-0.5">Cần duyệt phân vai trò</div>
-            </div>
-            <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/30 shadow-sm">
-              <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Đã kích hoạt</div>
-              <div className="text-2xl font-black mt-1 text-emerald-600">{stats.approved}</div>
-              <div className="text-[10px] text-slate-500 mt-0.5">Thành viên đang hoạt động</div>
-            </div>
-            <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/30 shadow-sm">
-              <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Cơ cấu vai trò</div>
-              <div className="text-xs font-bold mt-2.5 text-slate-700 flex items-center justify-between gap-1">
-                <span>GV: {stats.teachers}</span>
-                <span>•</span>
-                <span>Khối Trưởng: {stats.leads}</span>
-                <span>•</span>
-                <span>BGH: {stats.bgh}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* TAB 1: MEMBERS MANAGEMENT */}
         {activeTab === 'members' && (
-          <div className="border border-slate-200/80 bg-white rounded-xl shadow-sm overflow-hidden animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6 shadow-sm">
             
-            {/* Search & Filters */}
-            <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-50/50">
-              
-              {/* Search Bar */}
-              <div className="relative w-full md:max-w-sm">
+            {/* Header section & Search & Filters */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h2 className="text-base font-black text-slate-800 uppercase tracking-wider">Danh sách Thành viên</h2>
+                <p className="text-[10px] text-slate-450 italic">
+                  💡 *Gợi ý bảo mật:* Admin có thể nhấp vào biểu tượng ✏️ bên cạnh Email để thay đổi Gmail liên kết đăng nhập cho thành viên.
+                </p>
+              </div>
+
+              {/* Search input */}
+              <div className="relative w-full md:w-64">
                 <input
                   type="text"
-                  placeholder="Tìm thành viên (Tên, Email)..."
+                  placeholder="Tìm kiếm họ tên, email..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all shadow-sm"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-primary focus:bg-white transition-colors"
                 />
+                <span className="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
               </div>
 
               {/* Filter Selectors */}
@@ -431,13 +439,50 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                           {/* Name & Email */}
                           <td className="p-4">
                             <div className="font-bold text-slate-800">{profile.full_name || '(Chưa khai báo)'}</div>
-                            <div className="text-[10px] text-slate-500 font-medium mt-0.5">{profile.email}</div>
+                            
+                            {/* Inline Edit Email cho Admin */}
+                            {editingEmailProfileId === profile.id ? (
+                              <div className="flex items-center gap-1.5 mt-1.5 animate-fade-in">
+                                <input
+                                  type="email"
+                                  value={newEmailValue}
+                                  onChange={e => setNewEmailValue(e.target.value)}
+                                  className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-[11px] font-medium text-slate-700 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary shadow-inner min-w-[200px]"
+                                />
+                                <button
+                                  onClick={() => handleUpdateEmail(profile.id, newEmailValue)}
+                                  className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-250 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-lg cursor-pointer transition-all active:scale-95 shadow-sm"
+                                >
+                                  Lưu
+                                </button>
+                                <button
+                                  onClick={() => setEditingEmailProfileId(null)}
+                                  className="bg-slate-100 hover:bg-slate-200 border border-slate-250 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg cursor-pointer transition-all active:scale-95 shadow-sm"
+                                >
+                                  Hủy
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 mt-0.5 group">
+                                <span className="text-[10px] text-slate-500 font-bold">{profile.email}</span>
+                                <button
+                                  onClick={() => {
+                                    setEditingEmailProfileId(profile.id);
+                                    setNewEmailValue(profile.email);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] hover:text-brand-primary cursor-pointer border border-slate-250 bg-white hover:bg-slate-50 rounded p-0.5 shadow-sm"
+                                  title="Thay đổi Gmail đăng nhập"
+                                >
+                                  ✏️ Sửa Gmail
+                                </button>
+                              </div>
+                            )}
                           </td>
 
                           {/* Role selector */}
                           <td className="p-4">
                             <select
-                              value={profile.role}
+                               value={profile.role}
                               disabled={isProcessing}
                               onChange={e => handleUpdateUser(profile.id, { role: e.target.value as UserRole })}
                               className="bg-white border border-slate-200 rounded px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer disabled:opacity-50 focus:outline-none focus:border-brand-primary"
@@ -533,7 +578,43 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                       <div className="flex justify-between items-start gap-2">
                         <div>
                           <div className="font-bold text-slate-800 text-sm leading-tight">{profile.full_name || '(Chưa khai báo)'}</div>
-                          <div className="text-[10px] text-slate-500 font-medium mt-0.5">{profile.email}</div>
+                          
+                          {/* Inline Edit Email trên Mobile */}
+                          {editingEmailProfileId === profile.id ? (
+                            <div className="flex items-center gap-1.5 mt-2 animate-fade-in">
+                              <input
+                                type="email"
+                                value={newEmailValue}
+                                onChange={e => setNewEmailValue(e.target.value)}
+                                className="bg-white border border-slate-350 rounded px-2 py-0.5 text-[10px] text-slate-700 focus:outline-none focus:border-brand-primary"
+                              />
+                              <button
+                                onClick={() => handleUpdateEmail(profile.id, newEmailValue)}
+                                className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded cursor-pointer"
+                              >
+                                Lưu
+                              </button>
+                              <button
+                                onClick={() => setEditingEmailProfileId(null)}
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-650 text-[9px] font-bold px-1.5 py-0.5 rounded cursor-pointer"
+                              >
+                                Hủy
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 mt-0.5 group">
+                              <span className="text-[10px] text-slate-500 font-medium">{profile.email}</span>
+                              <button
+                                onClick={() => {
+                                  setEditingEmailProfileId(profile.id);
+                                  setNewEmailValue(profile.email);
+                                }}
+                                className="text-[9px] text-brand-primary hover:underline cursor-pointer ml-1"
+                              >
+                                ✏️ Đổi Gmail
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold shrink-0 ${
                           profile.status === 'approved'

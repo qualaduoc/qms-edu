@@ -88,13 +88,30 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { userId, role, status, grade, driveFolderId } = body;
+    const { userId, role, status, grade, driveFolderId, email } = body;
 
     if (!userId) {
       return NextResponse.json({ error: 'Thiếu ID thành viên cần cập nhật.' }, { status: 400 });
     }
 
     const supabase = getSupabaseAdmin();
+    
+    // Kiểm tra trùng lặp email nếu Admin muốn thay đổi Email
+    let cleanEmail = undefined;
+    if (email !== undefined && email.trim() !== '') {
+      cleanEmail = email.trim().toLowerCase();
+      
+      const { data: existingEmailProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', cleanEmail)
+        .neq('id', userId)
+        .maybeSingle();
+
+      if (existingEmailProfile) {
+        return NextResponse.json({ error: `Email ${cleanEmail} đã được sử dụng bởi một thành viên khác.` }, { status: 400 });
+      }
+    }
     
     // 1. Nếu có yêu cầu duyệt hoạt động thành 'approved' -> tự động tạo thư mục trên Drive
     let finalDriveFolderId = driveFolderId;
@@ -151,6 +168,7 @@ export async function PATCH(req: NextRequest) {
     if (status !== undefined) updateData.status = status;
     if (grade !== undefined) updateData.grade = grade;
     if (finalDriveFolderId !== undefined) updateData.drive_folder_id = finalDriveFolderId;
+    if (cleanEmail !== undefined) updateData.email = cleanEmail;
 
     const { data, error } = await supabase
       .from('profiles')
