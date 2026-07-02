@@ -119,73 +119,30 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
     setLoadingHistory(true);
     try {
       if (isReal) {
-        let dbData: any[] | null = null;
-        let queryError = null;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const token = session.access_token;
 
-        // 1. Thử truy vấn đầy đủ với các cột mới
-        try {
-          const { data, error } = await supabase
-            .from('submissions')
-            .select(`
-              week_number,
-              bgh_rating,
-              bgh_feedback,
-              submitted_at,
-              teacher_note,
-              elite_file_name,
-              elite_file_url,
-              profiles!teacher_id (
-                id,
-                full_name,
-                grade,
-                email
-              )
-            `)
-            .not('bgh_rating', 'is', null)
-            .order('submitted_at', { ascending: false });
+        const response = await fetch('/api/bgh/history', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
 
-          if (error) {
-            queryError = error;
-          } else {
-            dbData = data;
-          }
-        } catch (e: any) {
-          queryError = e;
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || 'Không thể tải lịch sử đánh giá.');
         }
 
-        // 2. Chế độ dự phòng (fallback): Query loại bỏ các cột elite_file_name/url nếu bị lỗi
-        if (queryError || !dbData) {
-          console.warn('[BGH History] Không tìm thấy cột mới, chạy chế độ fallback...', queryError?.message || queryError);
-          const { data: fallbackData, error: fallbackErr } = await supabase
-            .from('submissions')
-            .select(`
-              week_number,
-              bgh_rating,
-              bgh_feedback,
-              submitted_at,
-              teacher_note,
-              profiles!teacher_id (
-                id,
-                full_name,
-                grade,
-                email
-              )
-            `)
-            .not('bgh_rating', 'is', null)
-            .order('submitted_at', { ascending: false });
-
-          if (fallbackErr) throw fallbackErr;
-          dbData = fallbackData;
-        }
-        
-        const formatted: EvaluationHistoryItem[] = (dbData || []).map(d => ({
+        const dbData = result.data || [];
+        const formatted: EvaluationHistoryItem[] = dbData.map((d: any) => ({
           weekNumber: d.week_number,
           rating: d.bgh_rating || '',
           feedback: d.bgh_feedback || '',
           updatedAt: d.submitted_at || new Date().toISOString(),
-          teacherName: (d.profiles as any)?.full_name || 'Giáo viên ẩn',
-          teacherGrade: (d.profiles as any)?.grade || 'Khối 1',
-          teacherEmail: (d.profiles as any)?.email || '',
+          teacherName: d.profiles?.full_name || 'Giáo viên ẩn',
+          teacherGrade: d.profiles?.grade || 'Khối 1',
+          teacherEmail: d.profiles?.email || '',
           teacherNote: d.teacher_note || '',
           eliteFileName: d.elite_file_name || null,
           eliteFileUrl: d.elite_file_url || null,
