@@ -67,6 +67,15 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [selectedEliteFiles, setSelectedEliteFiles] = useState<TeacherFile[]>([]);
 
+  // States phục vụ in báo cáo tùy chỉnh của BGH
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printConfig, setPrintConfig] = useState({
+    schoolName: 'Trường Tiểu học Quả Là Được',
+    issuingBody: 'Ban Giám Hiệu',
+    location: 'Lâm Đồng',
+    signerName: user.fullName || '',
+  });
+
   // Dữ liệu đánh giá chi tiết theo tiêu chí
   const [criteriaRatings, setCriteriaRatings] = useState<{ [key: string]: string }>({
     'muc_tiêu': EVALUATION_LEVELS.DAT,
@@ -425,7 +434,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
   };
 
   // Hàm in báo cáo kết quả đánh giá thi đua chuyên môn của BGH
-  const handlePrintReport = () => {
+  const handlePrintReport = (configData = printConfig) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       showToast('Vui lòng cho phép trình duyệt mở tab mới để thực hiện in!', 'warning');
@@ -469,13 +478,13 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
           <table class="header-table">
             <tr>
               <td class="left-header">
-                <div style="font-weight: bold; text-transform: uppercase;">TRƯỜNG TIỂU HỌC QUẢ LÀ ĐƯỢC</div>
-                <div style="font-weight: bold; text-transform: uppercase; text-decoration: underline;">BAN GIÁM HIỆU</div>
+                <div style="font-weight: bold; text-transform: uppercase;">${configData.schoolName}</div>
+                <div style="font-weight: bold; text-transform: uppercase; text-decoration: underline;">${configData.issuingBody}</div>
               </td>
               <td class="right-header">
                 <div style="font-weight: bold;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
                 <div style="font-weight: bold; text-decoration: underline; text-underline-offset: 4px;">Độc lập - Tự do - Hạnh phúc</div>
-                <div style="margin-top: 6px; font-style: italic;">Lâm Đồng, Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</div>
+                <div style="margin-top: 6px; font-style: italic;">${configData.location}, Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</div>
               </td>
             </tr>
           </table>
@@ -525,7 +534,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
               <td>
                 <div class="signature-title">TM. BAN GIÁM HIỆU</div>
                 <div style="font-style: italic; font-size: 11px; margin-top: -65px; margin-bottom: 50px;">(Ký, ghi rõ họ tên và đóng dấu)</div>
-                <div style="font-weight: bold; font-size: 13px; text-transform: uppercase;">${user.fullName}</div>
+                <div style="font-weight: bold; font-size: 13px; text-transform: uppercase;">${configData.signerName}</div>
               </td>
             </tr>
           </table>
@@ -1038,9 +1047,9 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                 </button>
 
                 <button
-                  onClick={handlePrintReport}
+                  onClick={() => setShowPrintModal(true)}
                   className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold active:scale-[0.97] transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
-                  title="In báo cáo chi tiết theo bộ lọc hiện tại"
+                  title="Thiết lập thông tin và in báo cáo"
                 >
                   🖨️ In Báo Cáo
                 </button>
@@ -1133,6 +1142,94 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
 
           </div>
         </main>
+      )}
+
+      {/* MODAL THIẾT LẬP THÔNG TIN IN ẤN BÁO CÁO */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-5 animate-scale-in">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                🖨️ Thiết Lập Thông Tin Báo Cáo
+              </h3>
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="text-slate-400 hover:text-slate-650 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Form Fields */}
+            <div className="space-y-4 text-xs font-semibold text-slate-700">
+              <div>
+                <label className="block text-slate-550 mb-1">Tên trường học / Đơn vị chủ quản</label>
+                <input
+                  type="text"
+                  value={printConfig.schoolName}
+                  onChange={e => setPrintConfig(prev => ({ ...prev, schoolName: e.target.value }))}
+                  placeholder="Ví dụ: Trường Tiểu học Quả Là Được"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-brand-primary focus:bg-white transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-550 mb-1">Ban soạn thảo / Đơn vị ký duyệt</label>
+                <input
+                  type="text"
+                  value={printConfig.issuingBody}
+                  onChange={e => setPrintConfig(prev => ({ ...prev, issuingBody: e.target.value }))}
+                  placeholder="Ví dụ: Ban Giám Hiệu"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-brand-primary focus:bg-white transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-550 mb-1">Địa danh lập báo cáo (Tỉnh/Thành phố/Quận/Huyện)</label>
+                <input
+                  type="text"
+                  value={printConfig.location}
+                  onChange={e => setPrintConfig(prev => ({ ...prev, location: e.target.value }))}
+                  placeholder="Ví dụ: Lâm Đồng"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-brand-primary focus:bg-white transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-550 mb-1">Họ tên Người ký báo cáo (Hiệu trưởng / Đại diện BGH)</label>
+                <input
+                  type="text"
+                  value={printConfig.signerName}
+                  onChange={e => setPrintConfig(prev => ({ ...prev, signerName: e.target.value }))}
+                  placeholder="Nhập tên Hiệu trưởng hoặc người ký duyệt"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-brand-primary focus:bg-white transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="pt-3 border-t border-slate-100 flex justify-end gap-2.5">
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-650 rounded-lg text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                onClick={() => {
+                  setShowPrintModal(false);
+                  handlePrintReport(printConfig);
+                }}
+                className="px-5 py-2 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
+              >
+                🚀 Xuất PDF / In Ngay
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
 
     </div>
