@@ -60,33 +60,52 @@ export default function Home() {
         </div>
  
         {/* Main Content */}
-        <div className="relative z-10 my-auto py-12 lg:py-24 max-w-xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs text-indigo-100 font-medium mb-6 backdrop-blur-sm animate-fade-in">
-            <span className="flex h-2 w-2 rounded-full bg-brand-accent animate-ping"></span>
-            Giải pháp số hóa chất lượng sư phạm
-          </div>
-          <h1 className="text-4xl lg:text-6xl font-black tracking-tight leading-[1.1] mb-6 text-white">
-            Hệ thống Báo cáo <br />
-            & Quản lý Chất lượng <br />
-            <span className="bg-gradient-to-r from-blue-100 via-orange-200 to-brand-accent-light bg-clip-text text-transparent">
-              Giáo Dục
-            </span>
-          </h1>
-          <p className="text-indigo-100 text-lg leading-relaxed mb-8 max-w-lg">
-            QMS-EDU kết nối tự động hệ thống học liệu và báo cáo tuần của Giáo viên trực tiếp lên Google Drive của nhà trường, rút ngắn khâu phê duyệt cho Khối trưởng và Ban Giám Hiệu.
-          </p>
- 
-          {/* Feature highlights */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-indigo-50">
-            <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white">📊</div>
-              <span>Quét báo cáo tự động trên Drive</span>
+        <div className="relative z-10 my-auto py-8 lg:py-16 max-w-full flex flex-col lg:flex-row items-center justify-between gap-10">
+          
+          {/* Cột trái của Main Content: Phần chữ */}
+          <div className="max-w-xl space-y-6 flex-grow">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs text-indigo-100 font-medium backdrop-blur-sm animate-fade-in">
+              <span className="flex h-2 w-2 rounded-full bg-brand-accent animate-ping"></span>
+              Giải pháp số hóa chất lượng sư phạm
             </div>
-            <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-accent/25 text-brand-accent-light">✨</div>
-              <span>Giao diện trực quan khoa học</span>
+            <h1 className="text-3xl lg:text-5xl font-black tracking-tight leading-[1.1] text-white">
+              Hệ thống Báo cáo <br />
+              & Quản lý Chất lượng <br />
+              <span className="bg-gradient-to-r from-blue-100 via-orange-200 to-brand-accent-light bg-clip-text text-transparent">
+                Giáo Dục
+              </span>
+            </h1>
+            <p className="text-indigo-100 text-sm lg:text-base leading-relaxed max-w-lg">
+              QMS-EDU kết nối tự động hệ thống học liệu và báo cáo tuần của Giáo viên trực tiếp lên Google Drive của nhà trường, rút ngắn khâu phê duyệt cho Khối trưởng và Ban Giám Hiệu.
+            </p>
+
+            {/* Feature highlights */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs lg:text-sm text-indigo-50">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white shrink-0">📊</div>
+                <span>Quét báo cáo tự động trên Drive</span>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-accent/25 text-brand-accent-light shrink-0">✨</div>
+                <span>Giao diện trực quan khoa học</span>
+              </div>
             </div>
           </div>
+
+          {/* Cột phải của Main Content: Phần ảnh demo (Style Wow Design) */}
+          <div className="w-full lg:w-[380px] xl:w-[420px] shrink-0 relative animate-fade-in group mt-6 lg:mt-0">
+            {/* Vòng hào quang phát sáng phía sau */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-brand-accent/25 to-indigo-500/25 rounded-3xl blur-3xl opacity-80 group-hover:scale-105 transition-transform duration-500"></div>
+            {/* Khung ảnh viền mờ kính mờ Glassmorphism */}
+            <div className="relative rounded-3xl border border-white/20 bg-white/5 p-2 shadow-2xl backdrop-blur-sm overflow-hidden group-hover:border-white/35 transition-all duration-300">
+              <img
+                src="https://cdn.gamma.app/mwvy6i8k79wma58/generated-images/KQZyAB-8zK_54VpOr4oL4.png"
+                alt="QMS-EDU Dashboard Preview"
+                className="w-full h-auto rounded-2xl object-cover shadow-inner group-hover:scale-[1.01] transition-transform duration-500"
+              />
+            </div>
+          </div>
+
         </div>
  
         {/* Footer info */}
