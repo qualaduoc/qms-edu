@@ -88,7 +88,7 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const handleRegisterSuccess = async (fullName: string, grade: string) => {
+  const handleRegisterSuccess = async (fullName: string, grade: string, role: UserRole) => {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -99,7 +99,7 @@ export default function DashboardPage() {
         email: session.user.email,
         full_name: fullName,
         grade: grade,
-        role: 'teacher', // Mặc định giáo viên tự đăng ký
+        role: role,
         status: 'pending', // Chờ duyệt thủ công
         updated_at: new Date().toISOString(),
       });
@@ -109,7 +109,7 @@ export default function DashboardPage() {
       setUser({
         id: session.user.id,
         fullName,
-        role: 'teacher',
+        role: role,
         grade,
         status: 'pending',
         email: session.user.email || '',
@@ -186,10 +186,11 @@ export default function DashboardPage() {
           <div className="space-y-2 text-sm text-slate-400">
             <p>Xin chào <strong>{user.fullName}</strong>,</p>
             <p>Hồ sơ đăng ký của Thầy/Cô đã được ghi nhận và đang chờ Khối trưởng hoặc Ban Giám Hiệu phê duyệt để kích hoạt tài khoản.</p>
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 mt-4 text-left space-y-1">
+            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 mt-4 text-left space-y-1 text-xs">
               <div>• <strong>Họ tên:</strong> {user.fullName}</div>
               <div>• <strong>Email:</strong> {user.email}</div>
-              <div>• <strong>Đăng ký khối:</strong> {user.grade}</div>
+              <div>• <strong>Vai trò đăng ký:</strong> {user.role === 'teacher' ? 'Giáo viên' : user.role === 'lead' ? 'Khối trưởng' : user.role === 'bgh' ? 'Ban Giám Hiệu' : user.role}</div>
+              {user.role !== 'bgh' && <div>• <strong>Đăng ký khối:</strong> {user.grade}</div>}
             </div>
           </div>
           <div className="pt-4">
