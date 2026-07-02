@@ -21,7 +21,12 @@ interface UserProfileData {
 export default function DashboardPage() {
   const [user, setUser] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'landing' | 'workspace'>('landing');
+  const [viewMode, setViewMode] = useState<'landing' | 'workspace'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('qms_view_mode') as 'landing' | 'workspace') || 'landing';
+    }
+    return 'landing';
+  });
 
   useEffect(() => {
     const checkUserSession = async () => {
@@ -125,6 +130,9 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     setLoading(true);
     try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('qms_view_mode');
+      }
       await supabase.auth.signOut();
     } catch (err) {
       console.error('Lỗi đăng xuất:', err);
@@ -288,7 +296,10 @@ export default function DashboardPage() {
 
             {/* CARD 2: KHU VỰC LÀM VIỆC */}
             <div
-              onClick={() => setViewMode('workspace')}
+              onClick={() => {
+                setViewMode('workspace');
+                localStorage.setItem('qms_view_mode', 'workspace');
+              }}
               className="p-8 rounded-3xl border border-slate-300 bg-white hover:border-brand-primary/50 hover:shadow-xl hover:shadow-brand-primary/5 transition-all duration-300 flex flex-col justify-between min-h-[300px] shadow-sm relative cursor-pointer group active:scale-[0.99]"
             >
               <div className="absolute top-0 right-0 p-6 text-4xl group-hover:scale-110 transition-transform duration-300">💼</div>
