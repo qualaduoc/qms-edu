@@ -226,7 +226,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
   }, [selectedWeek, submissions, isReal]);
 
   // Xử lý nộp file thực tế lên Google Drive API
-  const handleFileUpload = async (type: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (type: string, e: React.ChangeEvent<HTMLInputElement>, fileIndex: number) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     
@@ -249,6 +249,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
         formData.append('teacherName', user.fullName);
         formData.append('grade', user.grade);
         formData.append('teacherNote', teacherNote);
+        formData.append('fileIndex', String(fileIndex));
 
         const res = await fetch('/api/submissions/upload', {
           method: 'POST',
@@ -274,7 +275,12 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
       // Chế độ demo
       const cleanName = user.fullName.replace(/\s+/g, '');
       const weekStr = String(selectedWeek).padStart(2, '0');
-      let standardName = `${type}_Tuan${weekStr}_${cleanName}.docx`;
+      const originalNameClean = file.name
+        .replace(/\.[^/.]+$/, "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]/g, "");
+      let standardName = `${type}_Tuan${weekStr}_${cleanName}_${originalNameClean}_${fileIndex}.docx`;
 
       setFiles(prev => ({
         ...prev,
@@ -706,7 +712,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
                             type="file"
                             accept=".doc,.docx"
                             disabled={isUploading}
-                            onChange={(e) => handleFileUpload(type, e)}
+                            onChange={(e) => handleFileUpload(type, e, typeFiles.length + 1)}
                             className="hidden"
                           />
                         </label>

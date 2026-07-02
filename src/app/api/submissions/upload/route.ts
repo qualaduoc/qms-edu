@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
     const teacherName = formData.get('teacherName') as string;
     const grade = formData.get('grade') as string;
     const teacherNote = formData.get('teacherNote') as string || '';
+    const fileIndex = formData.get('fileIndex') as string || '1';
 
     // Validate inputs
     if (!file || !fileType || !weekNumber || !teacherId || !teacherName || !grade) {
@@ -116,12 +117,12 @@ export async function POST(req: NextRequest) {
     const weekFolderName = `Tuan-${weekNumber}`;
     const weekFolderId = await getOrCreateFolder(weekFolderName, teacherFolderId);
 
-    // 5. Chuẩn hóa tên file theo quy chuẩn (ví dụ: KHBD_Tuan03_DoThiAnhTuyet_GiaoAnToan1.docx)
+    // 5. Chuẩn hóa tên file theo quy chuẩn (ví dụ: KHBD_Tuan03_DoThiAnhTuyet_GiaoAnToan1_1.docx)
     const teacherNameNoSign = removeVietnameseTones(teacherName);
     const weekStr = String(weekNumber).padStart(2, '0');
     // Giữ lại tên gốc của file tải lên (không dấu viết liền) để phân biệt các file khác nhau cùng loại
     const originalFileNameClean = removeVietnameseTones(file.name.replace(/\.docx?$/i, ''));
-    const standardFileName = `${fileType}_Tuan${weekStr}_${teacherNameNoSign}_${originalFileNameClean}.docx`;
+    const standardFileName = `${fileType}_Tuan${weekStr}_${teacherNameNoSign}_${originalFileNameClean}_${fileIndex}.docx`;
 
     // 5.1 Kiểm tra xem file trùng tên đã tồn tại trên Drive của tuần đó chưa. Nếu có, xóa để ghi đè.
     try {
