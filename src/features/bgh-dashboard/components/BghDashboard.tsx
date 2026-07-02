@@ -1222,7 +1222,7 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                   setShowPrintModal(false);
                   handlePrintReport(printConfig);
                 }}
-                className="px-5 py-2 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
+                className="px-5 py-2 bg-brand-primary hover:opacity-90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
               >
                 🚀 Xuất PDF / In Ngay
               </button>
