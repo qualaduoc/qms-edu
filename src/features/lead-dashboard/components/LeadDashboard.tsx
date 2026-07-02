@@ -68,7 +68,48 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
   // Dữ liệu báo cáo của các giáo viên
   const [submissions, setSubmissions] = useState<{ [key: string]: DemoSubmission }>({});
 
+  // States dành cho tính năng xem bảng thống kê thi đua của giáo viên
+  const [viewingStatsTeacher, setViewingStatsTeacher] = useState<TeacherData | null>(null);
+  const [teacherStatsHistory, setTeacherStatsHistory] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+
   const isReal = !!user.id;
+
+  // Hàm click mở xem bảng thống kê thi đua giáo viên
+  const handleViewTeacherStats = async (teacher: TeacherData) => {
+    setViewingStatsTeacher(teacher);
+    setLoadingStats(true);
+    setTeacherStatsHistory([]);
+    
+    if (isReal) {
+      try {
+        const { data, error } = await supabase
+          .from('submissions')
+          .select('week_number, bgh_rating, bgh_feedback, submitted_at, lead_status, lead_note')
+          .eq('teacher_id', teacher.id)
+          .order('week_number', { ascending: true });
+
+        if (error) throw error;
+        setTeacherStatsHistory(data || []);
+      } catch (err) {
+        console.error('Lỗi tải lịch sử thống kê giáo viên:', err);
+        showToast('Không thể tải lịch sử đánh giá thi đua.', 'error');
+      } finally {
+        setLoadingStats(false);
+      }
+    } else {
+      // Giả lập dữ liệu stats ở chế độ demo
+      setTimeout(() => {
+        const mockHistory = [
+          { week_number: 1, submitted_at: '2026-09-05T17:00:00Z', lead_status: 'verified', bgh_rating: EVALUATION_LEVELS.TOT, bgh_feedback: 'Bài soạn xuất sắc.' },
+          { week_number: 2, submitted_at: '2026-09-12T08:30:00Z', lead_status: 'verified', bgh_rating: EVALUATION_LEVELS.XUAT_SAC, bgh_feedback: 'Điều chỉnh rất tốt.' },
+          { week_number: 3, submitted_at: null, lead_status: 'incomplete', bgh_rating: null, bgh_feedback: null },
+        ];
+        setTeacherStatsHistory(mockHistory);
+        setLoadingStats(false);
+      }, 800);
+    }
+  };
 
   // Hàm quét tự động Drive ngầm hàng loạt cho tất cả giáo viên
   const autoScanAllTeachers = async (teachersList: TeacherData[]) => {
@@ -109,7 +150,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
         }
       }
       setAutoScanProgress(prev => ({ ...prev, current: i + 1 }));
-      // Đợi 200ms trước khi quét giáo viên tiếp theo để chống rate limit
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     
@@ -121,7 +161,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
     if (!user.id) return;
     setLoadingTeachers(true);
     try {
-      // 1. Tải danh sách giáo viên thuộc cùng Khối và đã được phê duyệt hoạt động
       const { data: dbTeachers, error: errT } = await supabase
         .from('profiles')
         .select('id, full_name, email, drive_folder_id')
@@ -141,7 +180,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
 
       setTeachers(formattedTeachers);
 
-      // 2. Tải toàn bộ trạng thái nộp bài trong tuần đó của danh sách giáo viên này
       const teacherIds = formattedTeachers.map(t => t.id);
       if (teacherIds.length > 0) {
         const { data: dbSubs, error: errS } = await supabase
@@ -154,7 +192,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
 
         const subMap: { [key: string]: DemoSubmission } = {};
         
-        // Gán dữ liệu mặc định ban đầu cho các giáo viên chưa nộp
         formattedTeachers.forEach(t => {
           subMap[t.id] = {
             teacherId: t.id,
@@ -168,7 +205,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
           };
         });
 
-        // Đổ dữ liệu từ Supabase vào map
         (dbSubs || []).forEach(sub => {
           subMap[sub.teacher_id] = {
             teacherId: sub.teacher_id,
@@ -178,13 +214,11 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
             leadNote: sub.lead_note,
             bghRating: sub.bgh_rating,
             bghFeedback: sub.bgh_feedback,
-            files: [] // Quét realtime background
+            files: []
           };
         });
 
         setSubmissions(subMap);
-        
-        // Gọi tự động quét ngầm sau khi có danh sách
         autoScanAllTeachers(formattedTeachers);
       }
     } catch (err) {
@@ -198,7 +232,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
     if (isReal) {
       loadRealTeachersData();
     } else {
-      // 1. Dữ liệu giả lập cho phiên Demo
       const gradeSuffix = user.grade || 'Khối 1';
       const mockTeachers: TeacherData[] = [
         { id: 't1', fullName: 'Nguyễn Văn An', email: 'ledinhphuonglanltv@gmail.com', driveFolder: `Drive/QMS-EDU/${gradeSuffix}/NguyenVanAn` },
@@ -208,7 +241,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
       ];
       setTeachers(mockTeachers);
 
-      // 2. Dữ liệu báo cáo giả lập
       const storageKey = `qms_lead_submissions_w${selectedWeek}_${gradeSuffix}`;
       const stored = localStorage.getItem(storageKey);
       if (stored) {
@@ -279,7 +311,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
 
     if (isReal) {
       try {
-        // Gọi API quét Drive thật ở server-side
         const res = await fetch(`/api/submissions/scan?teacherId=${teacherId}&weekNumber=${selectedWeek}`);
         const result = await res.json();
         
@@ -298,13 +329,11 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
               [teacherId]: {
                 ...currentSub,
                 files: driveFiles,
-                // Nếu quét thấy file mà db chưa có submittedAt thì gán mặc định
                 submittedAt: currentSub?.submittedAt || (driveFiles.length > 0 ? new Date().toISOString() : null)
               }
             };
           });
 
-          // Hiển thị thông báo quét thành công
           showToast(`[Drive API] Quét thành công thư mục của Giáo viên ${teacherName}. Phát hiện: ${driveFiles.length} file.`, 'success');
         } else {
           showToast(`Lỗi quét Drive: ${result.error}`, 'error');
@@ -316,7 +345,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
         setScanningId(null);
       }
     } else {
-      // Chế độ demo giả lập
       setTimeout(() => {
         setScanningId(null);
         const currentSub = submissions[teacherId];
@@ -369,7 +397,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
 
     if (isReal) {
       try {
-        // 1. Gọi API phản hồi & gửi mail SMTP ở server-side (Bypass RLS)
         console.log(`[SMTP] Gửi phản hồi trạng thái ${status} tới ${selectedTeacher.email}...`);
         const emailResponse = await fetch('/api/mail', {
           method: 'POST',
@@ -394,7 +421,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
           throw new Error(emailResult.error || 'Lỗi phản hồi và gửi email thông báo.');
         }
 
-        // Cập nhật giao diện
         setSubmissions(prev => ({
           ...prev,
           [selectedTeacher.id]: {
@@ -413,7 +439,6 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
         setSelectedTeacher(null);
       }
     } else {
-      // Chế độ demo
       setTimeout(() => {
         const updatedSub: DemoSubmission = {
           ...sub,
@@ -494,20 +519,21 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
           </button>
         </div>
       </header>
-      {/* 2. MAIN LAYOUT (Sidebar chọn Tuần + Main Content) */}
+
+      {/* MAIN CONTAINER */}
       <div className="flex-grow flex flex-col md:flex-row">
         
-        {/* SIDEBAR BÊN TRÁI: Chọn Tuần dọc */}
+        {/* SIDEBAR BÊN TRÁI: Chọn Tuần */}
         <aside className="w-full md:w-64 border-r border-slate-200 bg-white p-4 shrink-0 flex flex-col gap-3 shadow-sm">
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider px-2">
-            Tuần dạy học (Năm học 2026-2027)
+            Tuần kiểm duyệt học liệu
           </div>
           
           <div className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-y-auto max-h-[150px] md:max-h-[calc(100vh-180px)] pb-2 md:pb-0 pr-1 scrollbar-hidden">
             {Array.from({ length: totalWeeks }, (_, idx) => idx + 1).map((week) => {
               const isCurrent = week === currentWeek;
               const isSelected = week === selectedWeek;
-
+              
               return (
                 <button
                   key={week}
@@ -533,69 +559,62 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
           </div>
         </aside>
 
-        {/* CỘT CHÍNH: Bảng theo dõi giáo viên */}
-        <main className="flex-grow p-4 sm:p-6 space-y-6 max-w-7xl w-full mx-auto">
-          {/* Lịch học tuần ở đầu main */}
-          <div className="bg-white border border-slate-300 rounded-2xl p-4 flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center shadow-sm">
-            <div>
-              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tuần dạy học hiện chọn</div>
-              <h2 className="text-lg font-black text-slate-800">Báo cáo tuần {selectedWeek}</h2>
+        {/* CỘT CHÍNH: Kiểm duyệt giáo án của Tổ chuyên môn */}
+        <main className="flex-grow p-6 lg:p-10 max-w-5xl space-y-6">
+          
+          {/* Header Dashboard thông tin tuần */}
+          <div className="p-6 rounded-2xl border border-slate-300 bg-white shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="space-y-1">
+              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tổ chuyên môn {user.grade}</div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-800">Kiểm Duyệt Học Liệu Tuần {selectedWeek}</h2>
+              <p className="text-xs text-slate-500 font-medium">
+                Tuần học: từ <strong>{formatDate(dateRange.start)}</strong> đến <strong>{formatDate(dateRange.end)}</strong>
+              </p>
             </div>
-            <div className="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-150 px-3 py-1.5 rounded-lg shrink-0">
-              Lịch dạy: <span className="text-brand-primary">{formatDate(dateRange.start)}</span> đến <span className="text-brand-primary">{formatDate(dateRange.end)}</span>
-            </div>
+            
+            <button
+              onClick={() => isReal ? loadRealTeachersData() : showToast('Reload danh sách demo.', 'success')}
+              disabled={loadingTeachers || isAutoScanning}
+              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-sm cursor-pointer btn-interactive disabled:opacity-50"
+            >
+              🔄 Tải lại dữ liệu
+            </button>
           </div>
 
-          {/* Banner Success */}
-          {successMsg && (
-            <div className="p-4 rounded-xl border border-green-200 bg-green-50 text-sm text-green-700 font-bold animate-fade-in shadow-sm">
-              ✅ {successMsg}
+          {/* AUTO-SCAN PROGRESS WINDOW */}
+          {isAutoScanning && (
+            <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/70 text-xs text-indigo-700 font-bold flex flex-col gap-2 shadow-sm animate-pulse">
+              <div className="flex items-center justify-between">
+                <span>⚡ Hệ thống đang tự động quét ngầm Google Drive của các Giáo viên trong khối...</span>
+                <span>{autoScanProgress.current}/{autoScanProgress.total} Giáo viên</span>
+              </div>
+              <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className="bg-brand-primary h-full transition-all duration-300"
+                  style={{ width: `${(autoScanProgress.current / autoScanProgress.total) * 100}%` }}
+                ></div>
+              </div>
             </div>
           )}
 
-        {/* TIẾN TRÌNH TỰ ĐỘNG QUÉT DRIVE NGẦM */}
-        {isAutoScanning && (
-          <div className="p-4 rounded-2xl border border-indigo-100 bg-indigo-50/60 text-xs text-indigo-800 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm animate-fade-in">
-            <div className="flex items-center gap-2">
-              <span className="animate-spin text-sm">🔄</span>
-              <span>Hệ thống đang tự động quét ngầm dữ liệu Drive giáo viên...</span>
-            </div>
-            <div className="w-full sm:w-auto bg-slate-200 rounded-full h-2 overflow-hidden flex-grow max-w-[200px] mx-0 sm:mx-4">
-              <div 
-                className="bg-indigo-600 h-2 transition-all duration-300"
-                style={{ width: `${(autoScanProgress.current / autoScanProgress.total) * 100}%` }}
-              ></div>
-            </div>
-            <div className="shrink-0 text-slate-500">
-              Đã quét: <strong className="text-indigo-700">{autoScanProgress.current}</strong>/{autoScanProgress.total} giáo viên
-            </div>
-          </div>
-        )}
-
-        {/* LOADING DATA INDICATOR */}
-        {loadingTeachers && (
-          <div className="p-4 rounded-2xl border border-slate-200 bg-white text-center text-xs text-slate-500 shadow-sm animate-pulse">
-            🔄 Đang tải danh sách giáo viên {user.grade} thực tế từ Cơ sở dữ liệu...
-          </div>
-        )}
-
-        {/* DANH SÁCH GIÁO VIÊN VÀ BÁO CÁO CỦA HỌ */}
-        {!loadingTeachers && (
+          {/* DANH SÁCH GIÁO VIÊN VÀ TRẠNG THÁI NỘP */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-xs sm:text-sm font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                📋 Theo dõi và Duyệt giáo án {user.grade} (Tuần {selectedWeek})
-              </h2>
-              <span className="text-[10px] text-slate-400 font-black uppercase bg-slate-100 px-2.5 py-1 rounded-md">
-                Tổng số giáo viên: {teachers.length}
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                Giáo viên trong Khối ({teachers.length} thành viên)
+              </h3>
+              <span className="text-[10px] text-slate-400 italic">
+                * Click vào tên Giáo viên 🏆 để xem toàn bộ bảng thống kê thi đua 35 tuần
               </span>
             </div>
 
-            {teachers.length === 0 ? (
-              <div className="p-12 border border-dashed border-slate-300 rounded-2xl bg-white text-center shadow-sm">
-                <span className="text-4xl block mb-2">📋</span>
-                <div className="text-xs font-bold text-slate-700 uppercase">Khối chưa có giáo viên nào hoạt động</div>
-                <p className="text-[10px] text-slate-400 mt-1 max-w-xs mx-auto">Chưa có giáo viên nào thuộc khối này đăng ký tài khoản hoặc tài khoản của họ đang ở hàng chờ phê duyệt.</p>
+            {loadingTeachers ? (
+              <div className="text-center py-12 text-slate-400 text-xs font-bold">
+                <span className="inline-block animate-spin mr-2">🔄</span> Đang tải danh sách Giáo viên và đồng bộ dữ liệu...
+              </div>
+            ) : teachers.length === 0 ? (
+              <div className="text-center py-12 bg-white border border-slate-200 rounded-2xl text-slate-400 text-xs font-bold">
+                📭 Không tìm thấy giáo viên nào được phê duyệt thuộc khối này.
               </div>
             ) : (
               <div className="flex flex-col gap-3">
@@ -639,7 +658,13 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
                         <div className="flex items-center gap-2">
                           <span className="text-lg">👩‍🏫</span>
                           <div>
-                            <h3 className="font-extrabold text-slate-800 text-sm leading-tight">{teacher.fullName}</h3>
+                            <h3 
+                              onClick={() => handleViewTeacherStats(teacher)}
+                              className="font-extrabold text-brand-primary text-sm leading-tight hover:underline hover:text-brand-primary-hover cursor-pointer flex items-center gap-1"
+                              title="Click để xem bảng thống kê đánh giá thi đua"
+                            >
+                              {teacher.fullName} <span className="text-[11px]">🏆</span>
+                            </h3>
                             <span className="text-[10px] text-slate-400 font-medium">{teacher.email}</span>
                           </div>
                         </div>
@@ -725,62 +750,51 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
                           )}
                         </div>
 
-                        {/* Text thông báo trạng thái nộp chuẩn hay thiếu */}
-                        <div className="text-[11px] leading-tight">
-                          {isComplete ? (
-                            <div className="text-emerald-600 font-extrabold flex items-center gap-1">
-                              <span>✓ Đã nộp đủ, vui lòng kiểm tra sơ bộ nội dung.</span>
-                            </div>
-                          ) : fileCount > 0 ? (
-                            <div className="text-orange-600 font-bold">
-                              ⚠️ Nộp thiếu: <span className="underline">{missingTypes.join(', ')}</span> (Mới có {fileCount}/3 file)
-                            </div>
-                          ) : (
-                            <div className="text-slate-400 italic">
-                              ❌ Chưa tải tài liệu nào lên Drive cho Tuần này
-                            </div>
-                          )}
-                          
-                          {/* Ghi chú đính kèm của GV nếu có */}
-                          {sub?.teacherNote && (
-                            <div className="mt-1 text-[10px] text-slate-500 italic">
-                              "Gửi kèm: {sub.teacherNote}"
-                            </div>
-                          )}
-                        </div>
+                        {/* Note gửi kèm của Giáo viên */}
+                        {sub?.teacherNote && (
+                          <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] text-slate-600 font-medium">
+                            💬 GV note: "{sub.teacherNote}"
+                          </div>
+                        )}
+                        
+                        {/* Note kiểm duyệt trước đó */}
+                        {sub?.leadNote && (
+                          <div className="p-2 bg-indigo-50/30 border border-indigo-100 rounded-lg text-[10px] text-indigo-750 font-bold">
+                            📝 Nhận xét của tôi: "{sub.leadNote}"
+                          </div>
+                        )}
                       </div>
 
-                      {/* Cột 3: Trạng thái & Tác vụ kiểm duyệt */}
-                      <div className="flex flex-row md:flex-col lg:flex-row gap-3 md:w-auto items-center justify-between md:justify-end shrink-0 w-full pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
-                        
-                        {/* Badge trạng thái */}
-                        <div className="text-right">
-                          {!sub?.submittedAt ? (
-                            <span className="px-2.5 py-1 text-[10px] font-extrabold rounded-full bg-slate-100 text-slate-500 border border-slate-200">Chưa nộp bài</span>
-                          ) : sub.leadStatus === 'incomplete' ? (
-                            <span className="px-2.5 py-1 text-[10px] font-extrabold rounded-full bg-orange-50 text-orange-600 border border-orange-200">Cần bổ sung</span>
-                          ) : (
-                            <span className="px-2.5 py-1 text-[10px] font-extrabold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">✓ Đã nộp bài</span>
-                          )}
-                        </div>
+                      {/* Cột 3: Trạng thái & Các nút chức năng kiểm duyệt */}
+                      <div className="flex flex-row md:flex-col gap-2 items-center md:items-end w-full md:w-auto justify-between md:justify-center border-t md:border-t-0 pt-3 md:pt-0 mt-2 md:mt-0">
+                        {/* Hiển thị Rating của BGH (nếu có) */}
+                        {sub?.bghRating && (
+                          <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${EVALUATION_COLORS[sub.bghRating as keyof typeof EVALUATION_COLORS]}`}>
+                            BGH: {sub.bghRating}
+                          </span>
+                        )}
 
-                        {/* Nút tác vụ */}
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleScanDrive(teacher.id, teacher.fullName)}
-                            disabled={isScanning || isAutoScanning}
-                            title="Quét lại Drive của giáo viên này"
-                            className="px-2.5 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-[10px] font-bold cursor-pointer transition-all active:scale-95 shadow-sm btn-interactive shrink-0"
+                            disabled={isScanning || !teacher.driveFolderId}
+                            className="px-2.5 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold cursor-pointer active:scale-95 transition-all flex items-center gap-1 shadow-sm btn-interactive disabled:opacity-50"
                           >
-                            {isScanning ? '🔄' : '🔍 Quét lại'}
+                            {isScanning ? '⏳ Quét...' : '🔍 Quét Drive'}
                           </button>
 
                           <button
                             onClick={() => handleVerifyClick(teacher)}
-                            disabled={!sub?.submittedAt && sub?.leadStatus === 'incomplete'}
-                            className="px-2.5 py-1.5 bg-brand-primary hover:bg-brand-primary-hover disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-100 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-all active:scale-95 shadow-sm btn-interactive shrink-0"
+                            disabled={fileCount === 0}
+                            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer active:scale-95 transition-all shadow-sm flex items-center gap-1 border btn-interactive ${
+                              sub?.leadStatus === 'verified'
+                                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                                : sub?.leadStatus === 'incomplete'
+                                  ? 'bg-red-50 hover:bg-red-100 text-red-650 border-red-200 animate-pulse'
+                                  : 'bg-brand-primary text-white border-brand-primary hover:opacity-90'
+                            }`}
                           >
-                            ✉ Phản hồi
+                            {sub?.leadStatus === 'verified' ? '✓ Đã Duyệt' : sub?.leadStatus === 'incomplete' ? '🔴 Cần bổ sung' : '✍ Duyệt bài'}
                           </button>
                         </div>
                       </div>
@@ -791,11 +805,11 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
               </div>
             )}
           </div>
-        )}
-      </main>
+
+        </main>
       </div>
 
-      {/* POPUP MODAL DUYỆT & NHẬN XÉT GỬI MAIL */}
+      {/* MODAL 1: PHẢN HỒI & DUYỆT BÁO CÁO GỬI MAIL SMTP */}
       {selectedTeacher && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="w-full max-w-lg rounded-2xl border border-slate-300 bg-white p-6 shadow-2xl relative overflow-hidden">
@@ -859,6 +873,114 @@ export default function LeadDashboard({ user, onLogout }: LeadDashboardProps) {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: XEM BẢNG THỐNG KÊ THI ĐUA CỦA GIÁO VIÊN (WOW DESIGN) */}
+      {viewingStatsTeacher && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-2xl rounded-3xl border border-slate-300 bg-white p-6 shadow-2xl relative overflow-hidden animate-scale-up">
+            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-brand-primary via-indigo-500 to-brand-accent"></div>
+
+            {/* Header Modal */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🏆</span>
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                    Thống kê kết quả thi đua
+                  </h3>
+                  <p className="text-[10px] text-slate-500">Giáo viên: <strong>{viewingStatsTeacher.fullName}</strong> ({viewingStatsTeacher.email})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingStatsTeacher(null)}
+                className="h-8 w-8 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-650 flex items-center justify-center transition-all cursor-pointer shadow-inner font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content Modal */}
+            {loadingStats ? (
+              <div className="text-center py-16 text-slate-400 text-xs font-bold">
+                <span className="inline-block animate-spin mr-2">🔄</span> Đang tải lịch sử đánh giá thi đua...
+              </div>
+            ) : teacherStatsHistory.length === 0 ? (
+              <div className="text-center py-16 bg-slate-50 rounded-2xl border border-slate-200 text-slate-400 text-xs font-medium">
+                📭 Giáo viên này chưa được ghi nhận đánh giá thi đua nào trong năm học.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="overflow-x-auto max-h-[350px] overflow-y-auto pr-1">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-[10px] font-bold text-slate-450 uppercase tracking-wider">
+                        <th className="py-2.5 px-3">Tuần</th>
+                        <th className="py-2.5 px-3">Duyệt (Khối trưởng)</th>
+                        <th className="py-2.5 px-3">Đánh giá (BGH)</th>
+                        <th className="py-2.5 px-3">Nhận xét chi tiết (BGH)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                      {Array.from({ length: totalWeeks }, (_, idx) => idx + 1).map((week) => {
+                        const sub = teacherStatsHistory.find(h => h.week_number === week);
+                        const rating = sub?.bgh_rating;
+                        const feedback = sub?.bgh_feedback;
+                        const isVerified = sub?.lead_status === 'verified';
+                        const isPending = sub?.submitted_at && sub?.lead_status === 'pending';
+                        const isIncomplete = sub?.lead_status === 'incomplete';
+
+                        return (
+                          <tr key={week} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-2.5 px-3 font-bold text-slate-800">Tuần {week}</td>
+                            <td className="py-2.5 px-3">
+                              {isVerified ? (
+                                <span className="text-emerald-600 font-bold">✓ Đã Duyệt</span>
+                              ) : isIncomplete ? (
+                                <span className="text-red-500 font-bold">🔴 Bổ sung</span>
+                              ) : isPending ? (
+                                <span className="text-amber-600 font-bold">⏳ Chờ duyệt</span>
+                              ) : (
+                                <span className="text-slate-400">-</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              {rating ? (
+                                <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${EVALUATION_COLORS[rating as keyof typeof EVALUATION_COLORS]}`}>
+                                  {rating}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic text-[10px]">Chưa đánh giá</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-650 font-medium max-w-xs truncate" title={feedback || ''}>
+                              {feedback || '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="text-[10px] text-slate-400 italic bg-slate-50 p-3 rounded-2xl border border-slate-200/60 leading-normal">
+                  💡 *Mẹo dành cho Khối trưởng:* Việc nhận xét từ Ban Giám Hiệu được thực hiện ngẫu nhiên. Khầy/Cô có thể dựa vào lịch sử đánh giá thi đua ở trên để đốc thúc giáo viên hoàn thiện bài dạy tốt hơn.
+                </div>
+              </div>
+            )}
+
+            {/* Footer Modal */}
+            <div className="flex justify-end pt-3 border-t border-slate-250 mt-4">
+              <button
+                onClick={() => setViewingStatsTeacher(null)}
+                className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer active:scale-95 transition-all shadow-sm"
+              >
+                Đóng
+              </button>
+            </div>
+
           </div>
         </div>
       )}

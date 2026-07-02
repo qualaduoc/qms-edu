@@ -69,7 +69,49 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
 
   const isReal = !!user.id;
 
-  // Tải dữ liệu nộp bài thật từ Supabase và quét Google Drive
+  // Tải dữ liệu trạng thái của tất cả các tuần để vẽ bảng thống kê thi đua
+  const loadAllSubmissions = async () => {
+    if (!user.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('submissions')
+        .select('*')
+        .eq('teacher_id', user.id);
+
+      if (error) throw error;
+      
+      const subMap: { [key: number]: DemoSubmission } = {};
+      data?.forEach((sub) => {
+        subMap[sub.week_number] = {
+          weekNumber: sub.week_number,
+          submittedAt: sub.submitted_at,
+          teacherNote: sub.teacher_note || '',
+          leadStatus: sub.lead_status || 'pending',
+          leadNote: sub.lead_note || null,
+          bghRating: sub.bgh_rating || null,
+          bghFeedback: sub.bgh_feedback || null,
+          files: []
+        };
+      });
+
+      setSubmissions(prev => {
+        const merged = { ...prev };
+        Object.keys(subMap).forEach((wStr) => {
+          const w = Number(wStr);
+          merged[w] = {
+            ...merged[w],
+            ...subMap[w],
+            files: prev[w]?.files || subMap[w].files
+          };
+        });
+        return merged;
+      });
+    } catch (err) {
+      console.error('Lỗi load all submissions:', err);
+    }
+  };
+
+  // Tải dữ liệu nộp bài thật từ Supabase và quét Google Drive của tuần cụ thể
   const loadRealSubmission = async (week: number) => {
     if (!user.id) return;
     setLoadingData(true);
@@ -132,6 +174,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
 
   useEffect(() => {
     if (isReal) {
+      loadAllSubmissions();
       loadRealSubmission(selectedWeek);
     } else {
       // Dữ liệu giả lập cho phiên Demo
@@ -223,7 +266,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
     } else {
       loadRealSubmission(selectedWeek);
     }
-  }, [selectedWeek, submissions, isReal]);
+  }, [selectedWeek, isReal]);
 
   // Xử lý nộp file thực tế lên Google Drive API
   const handleFileUpload = async (type: string, e: React.ChangeEvent<HTMLInputElement>, fileIndex: number) => {
@@ -270,6 +313,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
           
           // Tải lại dữ liệu tuần để cập nhật file thật từ Drive
           await loadRealSubmission(selectedWeek);
+          await loadAllSubmissions(); // Tải lại bảng thống kê thi đua
         } else {
           showToast(`Tải file lên thất bại: ${result.error}`, 'error');
         }
@@ -331,6 +375,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
           
           // Tải lại dữ liệu tuần
           await loadRealSubmission(selectedWeek);
+          await loadAllSubmissions(); // Cập nhật lại thống kê
         } else {
           showToast(`Xóa file thất bại: ${result.error}`, 'error');
         }
@@ -379,6 +424,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
 
         showToast(`Đã cập nhật ý kiến và xác nhận nộp báo cáo Tuần ${selectedWeek} thành công tới Khối trưởng!`, 'success');
         await loadRealSubmission(selectedWeek);
+        await loadAllSubmissions(); // Cập nhật lại lịch sử thống kê
       } catch (err: any) {
         console.error('Lỗi khi gửi báo cáo:', err);
         showToast(`Gửi báo cáo thất bại: ${err.message}`, 'error');
@@ -473,7 +519,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
         <div className="flex items-center gap-6">
           <div className="text-right hidden sm:block">
             <div className="text-xs font-bold text-white">Thầy/Cô: {user.fullName}</div>
-            <div className="text-[10px] text-indigo-100 font-bold bg-white/10 px-2.5 py-0.5 rounded-full inline-block mt-0.5">
+            <div className="text-[10px] text-indigo-100 font-bold bg-white/10 px-2.5 py-0.5 rounded-full inline-block mt-0.5 text-center">
               {user.grade}
             </div>
           </div>
@@ -704,7 +750,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
                                   type="button"
                                   disabled={isUploading}
                                   onClick={() => handleRemoveFile(type, file.id || '')}
-                                  className="text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg p-1.5 transition-all cursor-pointer shadow-sm shrink-0 active:scale-90"
+                                  className="text-red-650 hover:text-red-750 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg p-1.5 transition-all cursor-pointer shadow-sm shrink-0 active:scale-90"
                                   title="Xóa tệp tin"
                                 >
                                   🗑️
@@ -763,7 +809,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
                   {/* Giới hạn dung lượng */}
                   <div className="space-y-1">
                     <span className="font-bold text-slate-800 block uppercase tracking-wider">⚡ Giới hạn dung lượng</span>
-                    <p>Tối đa <strong className="text-orange-600 font-bold">15MB</strong> mỗi tệp tin tải lên.</p>
+                    <p>Tối đa <strong className="text-orange-650 font-bold">15MB</strong> mỗi tệp tin tải lên.</p>
                   </div>
 
                   {/* Quy chuẩn đặt tên */}
@@ -810,6 +856,63 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
             >
               {isSubmitting ? 'Đang gửi...' : `Báo cáo nộp chính thức Tuần ${selectedWeek}`}
             </button>
+          </div>
+
+          {/* 2.6 BẢNG THỐNG KÊ KẾT QUẢ THI ĐUA TỪ BAN GIÁM HIỆU */}
+          <div className="p-6 rounded-2xl border border-slate-300 bg-white shadow-sm space-y-4">
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              🏆 Bảng Thống Kê Kết Quả Đánh Giá Thi Đua (BGH Đánh Giá Ngẫu Nhiên)
+            </h3>
+            
+            <div className="overflow-x-auto max-h-[350px] overflow-y-auto pr-1">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[10px] font-bold text-slate-450 uppercase tracking-wider">
+                    <th className="py-3 px-4">Tuần</th>
+                    <th className="py-3 px-4">Trạng thái nộp</th>
+                    <th className="py-3 px-4">Đánh giá của BGH</th>
+                    <th className="py-3 px-4">Nhận xét chi tiết của BGH</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                  {Array.from({ length: totalWeeks }, (_, idx) => idx + 1).map((week) => {
+                    const sub = submissions[week];
+                    const rating = sub?.bghRating;
+                    const feedback = sub?.bghFeedback;
+                    const hasSubmitted = !!sub?.submittedAt;
+
+                    return (
+                      <tr key={week} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3 px-4 font-bold text-slate-800">Tuần {week}</td>
+                        <td className="py-3 px-4">
+                          {hasSubmitted ? (
+                            <span className="text-emerald-600 font-bold">✓ Đã nộp</span>
+                          ) : (
+                            <span className="text-slate-400">Chưa nộp</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          {rating ? (
+                            <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${EVALUATION_COLORS[rating as keyof typeof EVALUATION_COLORS]}`}>
+                              {rating}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-[10px]">Chưa đánh giá</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 max-w-sm truncate font-medium" title={feedback || ''}>
+                          {feedback || '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="text-[10px] text-slate-400 italic">
+              * Ghi chú: Việc kiểm tra giáo án và đánh giá thi đua được Ban Giám Hiệu thực hiện ngẫu nhiên theo tuần. Các tuần trống nghĩa là chưa được đánh giá.
+            </div>
           </div>
 
         </main>
