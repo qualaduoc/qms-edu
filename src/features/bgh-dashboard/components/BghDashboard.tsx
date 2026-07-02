@@ -119,34 +119,70 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
     setLoadingHistory(true);
     try {
       if (isReal) {
-        const { data, error } = await supabase
-          .from('submissions')
-          .select(`
-            week_number,
-            bgh_rating,
-            bgh_feedback,
-            updated_at,
-            submitted_at,
-            teacher_note,
-            elite_file_name,
-            elite_file_url,
-            profiles:teacher_id (
-              id,
-              full_name,
-              grade,
-              email
-            )
-          `)
-          .not('bgh_rating', 'is', null)
-          .order('updated_at', { ascending: false });
+        let dbData: any[] | null = null;
+        let queryError = null;
 
-        if (error) throw error;
+        // 1. Thử truy vấn đầy đủ với các cột mới
+        try {
+          const { data, error } = await supabase
+            .from('submissions')
+            .select(`
+              week_number,
+              bgh_rating,
+              bgh_feedback,
+              submitted_at,
+              teacher_note,
+              elite_file_name,
+              elite_file_url,
+              profiles!teacher_id (
+                id,
+                full_name,
+                grade,
+                email
+              )
+            `)
+            .not('bgh_rating', 'is', null)
+            .order('submitted_at', { ascending: false });
+
+          if (error) {
+            queryError = error;
+          } else {
+            dbData = data;
+          }
+        } catch (e: any) {
+          queryError = e;
+        }
+
+        // 2. Chế độ dự phòng (fallback): Query loại bỏ các cột elite_file_name/url nếu bị lỗi
+        if (queryError || !dbData) {
+          console.warn('[BGH History] Không tìm thấy cột mới, chạy chế độ fallback...', queryError?.message || queryError);
+          const { data: fallbackData, error: fallbackErr } = await supabase
+            .from('submissions')
+            .select(`
+              week_number,
+              bgh_rating,
+              bgh_feedback,
+              submitted_at,
+              teacher_note,
+              profiles!teacher_id (
+                id,
+                full_name,
+                grade,
+                email
+              )
+            `)
+            .not('bgh_rating', 'is', null)
+            .order('submitted_at', { ascending: false });
+
+          if (fallbackErr) throw fallbackErr;
+          dbData = fallbackData;
+        }
         
-        const formatted: EvaluationHistoryItem[] = (data || []).map(d => ({
+        const formatted: EvaluationHistoryItem[] = (dbData || []).map(d => ({
           weekNumber: d.week_number,
           rating: d.bgh_rating || '',
           feedback: d.bgh_feedback || '',
-          updatedAt: d.updated_at,
+          updatedAt: d.submitted_at || new Date().toISOString(),
           teacherName: (d.profiles as any)?.full_name || 'Giáo viên ẩn',
           teacherGrade: (d.profiles as any)?.grade || 'Khối 1',
           teacherEmail: (d.profiles as any)?.email || '',
