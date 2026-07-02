@@ -63,6 +63,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Thiếu thông tin yêu cầu tải lên.' }, { status: 400 });
     }
 
+    // Validate dung lượng tối đa 15MB
+    const maxSizeBytes = 15 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      return NextResponse.json({ error: 'Dung lượng file vượt quá giới hạn 15MB cho phép của nhà trường.' }, { status: 400 });
+    }
+
     const supabase = getSupabaseAdmin();
 
     // 1. Tải cấu hình hệ thống từ bảng system_config
@@ -120,9 +126,11 @@ export async function POST(req: NextRequest) {
     // 5. Chuẩn hóa tên file theo quy chuẩn (ví dụ: KHBD_Tuan03_DoThiAnhTuyet_GiaoAnToan1_1.docx)
     const teacherNameNoSign = removeVietnameseTones(teacherName);
     const weekStr = String(weekNumber).padStart(2, '0');
-    // Giữ lại tên gốc của file tải lên (không dấu viết liền) để phân biệt các file khác nhau cùng loại
-    const originalFileNameClean = removeVietnameseTones(file.name.replace(/\.docx?$/i, ''));
-    const standardFileName = `${fileType}_Tuan${weekStr}_${teacherNameNoSign}_${originalFileNameClean}_${fileIndex}.docx`;
+    // Lấy đuôi file động
+    const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'docx';
+    // Giữ lại tên gốc của file tải lên (không dấu viết liền, bỏ đuôi file cũ) để phân biệt các file khác nhau cùng loại
+    const originalFileNameClean = removeVietnameseTones(file.name.replace(/\.[^/.]+$/, ''));
+    const standardFileName = `${fileType}_Tuan${weekStr}_${teacherNameNoSign}_${originalFileNameClean}_${fileIndex}.${fileExtension}`;
 
     // 5.1 Kiểm tra xem file trùng tên đã tồn tại trên Drive của tuần đó chưa. Nếu có, xóa để ghi đè.
     try {
@@ -141,7 +149,20 @@ export async function POST(req: NextRequest) {
     // 6. Convert file thành Buffer để upload qua Drive API
     const fileBytes = await file.arrayBuffer();
     const fileBuffer = Buffer.from(fileBytes);
-    const mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; // docx type
+    
+    // Xác định mimeType động dựa vào đuôi file
+    let mimeType = 'application/octet-stream';
+    if (fileExtension === 'docx') {
+      mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    } else if (fileExtension === 'doc') {
+      mimeType = 'application/msword';
+    } else if (fileExtension === 'pdf') {
+      mimeType = 'application/pdf';
+    } else if (fileExtension === 'xls') {
+      mimeType = 'application/vnd.ms-excel';
+    } else if (fileExtension === 'xlsx') {
+      mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    }
 
     console.log(`[Drive API] Đang tải file lên thư mục tuần: ${weekFolderName}...`);
     const { fileId, fileUrl } = await uploadFile(fileBuffer, standardFileName, mimeType, weekFolderId);

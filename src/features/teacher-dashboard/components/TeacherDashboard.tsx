@@ -230,10 +230,18 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     
-    // Validate định dạng Word
-    const fileExtension = file.name.split('.').pop()?.toLowerCase();
-    if (fileExtension !== 'docx' && fileExtension !== 'doc') {
-      showToast('Vui lòng chỉ nộp tài liệu định dạng Word (.doc hoặc .docx) theo đúng quy định!', 'warning');
+    // Validate định dạng file (doc, docx, pdf, xls, xlsx)
+    const allowedExtensions = ['doc', 'docx', 'pdf', 'xls', 'xlsx'];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
+    if (!allowedExtensions.includes(fileExtension)) {
+      showToast('Định dạng tệp không hợp lệ! Vui lòng chỉ nộp các tệp Word (.doc, .docx), PDF (.pdf) hoặc Excel (.xls, .xlsx).', 'warning');
+      return;
+    }
+
+    // Validate dung lượng tối đa 15MB (15 * 1024 * 1024 bytes)
+    const maxSizeBytes = 15 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      showToast('Dung lượng tệp vượt quá giới hạn 15MB của nhà trường. Thầy/Cô vui lòng nén hoặc giảm dung lượng tệp!', 'warning');
       return;
     }
 
@@ -280,7 +288,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-zA-Z0-9]/g, "");
-      let standardName = `${type}_Tuan${weekStr}_${cleanName}_${originalNameClean}_${fileIndex}.docx`;
+      let standardName = `${type}_Tuan${weekStr}_${cleanName}_${originalNameClean}_${fileIndex}.${fileExtension}`;
 
       setFiles(prev => ({
         ...prev,
@@ -699,7 +707,7 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
                         </div>
                       ) : (
                         <p className="text-[10px] text-slate-400 mt-2 font-medium">
-                          Chưa tải tài liệu lên. Quy chuẩn tên file: <code className="text-brand-primary block mt-1">{type}_Tuan{String(selectedWeek).padStart(2, '0')}_{[user.fullName.replace(/\s+/g, '')]}_TenFile.docx</code>
+                          Chưa tải tài liệu lên. Quy chuẩn tên file: <code className="text-brand-primary block mt-1">{type}_Tuan{String(selectedWeek).padStart(2, '0')}_{[user.fullName.replace(/\s+/g, '')]}_TenFile.docx/pdf/xlsx</code>
                         </p>
                       )}
                     </div>
@@ -707,10 +715,10 @@ export default function TeacherDashboard({ user, onLogout }: TeacherDashboardPro
                     <div className="mt-4 pt-3 border-t border-slate-300">
                       {typeFiles.length < reqCount ? (
                         <label className="w-full block text-center py-2 bg-brand-primary-light/40 hover:bg-brand-primary-light/60 text-brand-primary border border-brand-primary-light rounded-xl text-[10px] font-bold cursor-pointer transition-colors btn-interactive shadow-sm">
-                          Tải file Word lên ({typeFiles.length}/{reqCount})
+                          Tải tài liệu lên ({typeFiles.length}/{reqCount})
                           <input
                             type="file"
-                            accept=".doc,.docx"
+                            accept=".doc,.docx,.pdf,.xls,.xlsx"
                             disabled={isUploading}
                             onChange={(e) => handleFileUpload(type, e, typeFiles.length + 1)}
                             className="hidden"
