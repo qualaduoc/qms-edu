@@ -431,6 +431,126 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
     }
   };
 
+  // Hàm in báo cáo kết quả đánh giá thi đua chuyên môn của BGH
+  const handlePrintReport = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      showToast('Vui lòng cho phép trình duyệt mở tab mới để thực hiện in!', 'warning');
+      return;
+    }
+
+    const dataToPrint = filteredHistoryList;
+    if (dataToPrint.length === 0) {
+      showToast('Không có dữ liệu phù hợp để in báo cáo!', 'warning');
+      return;
+    }
+
+    const gradeText = historyGradeFilter === 'all' ? 'TẤT CẢ CÁC KHỐI' : historyGradeFilter.toUpperCase();
+    const ratingText = historyRatingFilter === 'all' ? 'TẤT CẢ CÁC MỨC XẾP LOẠI' : historyRatingFilter.toUpperCase();
+    const searchText = historySearchTerm ? ` - Từ khóa: "${historySearchTerm}"` : '';
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Báo cáo đánh giá thi đua chuyên môn giáo viên</title>
+          <style>
+            @page { size: A4 portrait; margin: 15mm 20mm 15mm 20mm; }
+            body { font-family: "Times New Roman", Times, serif; font-size: 13px; line-height: 1.4; color: #000; margin: 0; padding: 0; }
+            .header-table { width: 100%; border: none; margin-bottom: 25px; border-collapse: collapse; }
+            .header-table td { border: none; padding: 0; vertical-align: top; }
+            .left-header { text-align: center; width: 45%; font-size: 12px; }
+            .right-header { text-align: center; width: 55%; font-size: 12px; }
+            .title { text-align: center; font-weight: bold; font-size: 15px; margin: 25px 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px; }
+            .subtitle { text-align: center; font-style: italic; margin-bottom: 20px; font-size: 12px; }
+            .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            .report-table th, .report-table td { border: 1px solid #000; padding: 7px 5px; text-align: left; vertical-align: top; }
+            .report-table th { text-align: center; font-weight: bold; background-color: #f5f5f5; font-size: 12px; text-transform: uppercase; }
+            .text-center { text-align: center; }
+            .font-bold { font-weight: bold; }
+            .signature-section { width: 100%; margin-top: 40px; border: none; border-collapse: collapse; page-break-inside: avoid; }
+            .signature-section td { border: none; padding: 0; text-align: center; width: 50%; vertical-align: top; }
+            .signature-title { font-weight: bold; margin-bottom: 70px; text-transform: uppercase; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <table class="header-table">
+            <tr>
+              <td class="left-header">
+                <div style="font-weight: bold; text-transform: uppercase;">TRƯỜNG TIỂU HỌC QUẢ LÀ ĐƯỢC</div>
+                <div style="font-weight: bold; text-transform: uppercase; text-decoration: underline;">BAN GIÁM HIỆU</div>
+              </td>
+              <td class="right-header">
+                <div style="font-weight: bold;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+                <div style="font-weight: bold; text-decoration: underline; text-underline-offset: 4px;">Độc lập - Tự do - Hạnh phúc</div>
+                <div style="margin-top: 6px; font-style: italic;">Lâm Đồng, Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</div>
+              </td>
+            </tr>
+          </table>
+
+          <div class="title">
+            BÁO CÁO KẾT QUẢ ĐÁNH GIÁ THI ĐUA CHUYÊN MÔN GIÁO VIÊN
+          </div>
+          <div class="subtitle">
+            (Thời điểm lập báo cáo: Tuần ${getCurrentWeek(schoolStartDate)} | Khối: ${gradeText} | Đánh giá: ${ratingText}${searchText})
+          </div>
+
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th style="width: 8%;" class="text-center">Tuần</th>
+                <th style="width: 22%;">Họ và Tên Giáo viên</th>
+                <th style="width: 12%;" class="text-center">Khối lớp</th>
+                <th style="width: 14%;" class="text-center">Xếp loại</th>
+                <th>Nội dung nhận xét chi tiết của BGH</th>
+                <th style="width: 22%;">Học liệu mẫu mực (Vinh danh)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dataToPrint.map(item => `
+                <tr>
+                  <td class="text-center font-bold">Tuần ${item.weekNumber}</td>
+                  <td class="font-bold">${item.teacherName}</td>
+                  <td class="text-center">${item.teacherGrade}</td>
+                  <td class="text-center font-bold">${item.rating}</td>
+                  <td>${item.feedback || '<i>Không có nhận xét chi tiết</i>'}</td>
+                  <td>${item.eliteFileName ? item.eliteFileName.split(' | ').map(f => `• ${f}`).join('<br>') : '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <table class="signature-section">
+            <tr>
+              <td style="text-align: left; padding-left: 20px;">
+                <div style="font-style: italic; font-weight: bold; text-decoration: underline; margin-bottom: 5px;">Nơi nhận:</div>
+                <div style="font-size: 11px; line-height: 1.5;">
+                  - Chi bộ, BGH (để b/c);<br>
+                  - Hội đồng Thi đua Khen thưởng;<br>
+                  - Lưu VT, Hồ sơ chuyên môn.
+                </div>
+              </td>
+              <td>
+                <div class="signature-title">TM. BAN GIÁM HIỆU</div>
+                <div style="font-style: italic; font-size: 11px; margin-top: -65px; margin-bottom: 50px;">(Ký, ghi rõ họ tên và đóng dấu)</div>
+                <div style="font-weight: bold; font-size: 13px; text-transform: uppercase;">${user.fullName}</div>
+              </td>
+            </tr>
+          </table>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   // Lọc lịch sử nhận xét đánh giá của BGH
   const filteredHistoryList = evaluationHistoryList.filter(item => {
     const searchMatch = 
@@ -918,10 +1038,18 @@ export default function BghDashboard({ user, onLogout }: BghDashboardProps) {
                 <button
                   onClick={loadEvaluationHistory}
                   disabled={loadingHistory}
-                  className="p-2 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg active:scale-95 transition-all shadow-sm cursor-pointer"
+                  className="p-2 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg active:scale-95 transition-all shadow-sm cursor-pointer text-xs"
                   title="Tải lại lịch sử"
                 >
-                  🔄
+                  🔄 Tải lại
+                </button>
+
+                <button
+                  onClick={handlePrintReport}
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold active:scale-[0.97] transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+                  title="In báo cáo chi tiết theo bộ lọc hiện tại"
+                >
+                  🖨️ In Báo Cáo
                 </button>
               </div>
             </div>
